@@ -975,37 +975,33 @@ function exportAllBookings() {
       return a.t - b.t;
     });
 
-    // Build export HTML
+    // Build Excel-compatible HTML
     var timeSlots = {14:'14:00-15:00',15:'15:00-16:00',16:'16:00-17:00',17:'17:00-18:00',18:'18:00-19:00',19:'19:00-20:00',20:'20:00-21:00'};
     var now = new Date();
-    var html = '<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><title>钢琴房预约记录汇总</title>';
-    html += '<style>body{font-family:"PingFang SC","Microsoft YaHei",sans-serif;padding:20px;max-width:1000px;margin:0 auto;color:#333;}';
-    html += 'h1{text-align:center;font-size:20px;margin-bottom:4px;}';
-    html += '.info{text-align:center;font-size:12px;color:#999;margin-bottom:20px;}';
-    html += 'table{width:100%;border-collapse:collapse;font-size:12px;}';
-    html += 'th,td{padding:6px 8px;border:1px solid #ddd;text-align:center;}';
-    html += 'th{background:#667eea;color:#fff;font-weight:500;}';
-    html += 'tr:nth-child(even){background:#f9f9f9;}';
-    html += '.sig-img{max-width:80px;max-height:40px;}';
-    html += '@media print{body{padding:10px;}button{display:none;}}';
-    html += '</style></head><body>';
-    html += '<h1>钢琴房预约记录汇总</h1>';
-    html += '<div class="info">导出时间：' + formatDate(now) + ' ' + padTime(now.getHours()) + ':' + padTime(now.getMinutes()) + ' | 共 ' + allBookings.length + ' 条记录</div>';
-    html += '<table><thead><tr><th>日期</th><th>琴房</th><th>时段</th><th>姓名</th><th>手机号</th><th>签名</th></tr></thead><tbody>';
+    var html = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">';
+    html += '<head><meta charset="UTF-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>预约记录</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->';
+    html += '<style>table{border-collapse:collapse;}th,td{border:1px solid #000;padding:6px 8px;text-align:center;font-size:12px;}';
+    html += 'th{background:#667eea;color:#fff;}.sig-img{max-width:80px;max-height:40px;}</style></head><body>';
+    html += '<h3>钢琴房预约记录汇总 — ' + formatDate(now) + '（共' + allBookings.length + '条）</h3>';
+    html += '<table><tr><th>日期</th><th>琴房</th><th>时段</th><th>姓名</th><th>手机号</th><th>签名</th></tr>';
 
     allBookings.forEach(function(b) {
-      var sigHtml = b.s ? '<img class="sig-img" src="' + escapeHtml(b.s) + '" alt="签名">' : '-';
+      var sigHtml = b.s ? '<img class="sig-img" src="' + escapeHtml(b.s) + '">' : '-';
       html += '<tr><td>' + escapeHtml(b.date) + '</td><td>' + b.r + '</td><td>' + (timeSlots[b.t] || b.t+':00') + '</td><td>' + escapeHtml(b.n) + '</td><td>' + escapeHtml(b.p || '-') + '</td><td>' + sigHtml + '</td></tr>';
     });
 
-    html += '</tbody></table>';
-    html += '<div style="text-align:center;margin-top:16px;"><button onclick="window.print()" style="padding:10px 30px;background:#667eea;color:#fff;border:none;border-radius:8px;font-size:14px;cursor:pointer;">打印 / 保存 PDF</button></div>';
-    html += '</body></html>';
+    html += '</table></body></html>';
 
-    // Open in new tab
-    var w = window.open('', '_blank');
-    w.document.write(html);
-    w.document.close();
+    // Download as .xls file
+    var blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = '钢琴房预约记录_' + formatDate(now) + '.xls';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   }).catch(function(err) {
     showLoading(false);
     showToast('导出失败：' + (err.message || '网络错误'), 'error');
