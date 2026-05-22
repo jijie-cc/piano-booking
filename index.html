@@ -279,6 +279,38 @@ body {
   color: #bbb;
 }
 
+/* ---- Admin Table ---- */
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  background: #fff;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+.admin-table th, .admin-table td {
+  padding: 8px 6px;
+  text-align: center;
+  border-bottom: 1px solid #f0f0f0;
+}
+.admin-table th {
+  background: #667eea;
+  color: #fff;
+  font-weight: 500;
+  font-size: 11px;
+}
+.admin-table .sig-thumb {
+  max-width: 60px;
+  max-height: 30px;
+}
+.no-bookings {
+  text-align: center;
+  padding: 40px 20px;
+  color: #999;
+  font-size: 14px;
+}
+
 @media (min-width: 500px) {
   .room-card { padding: 12px 16px; }
   .slot-btn { font-size: 14px; min-height: 48px; }
@@ -326,6 +358,17 @@ body {
 
   <!-- Room cards -->
   <div class="room-list" id="roomList"></div>
+
+  <!-- Admin: booking records table -->
+  <div class="room-list" id="adminView" style="display:none;">
+    <div style="text-align:center;margin-bottom:12px;font-weight:600;color:#555;">今日预约记录</div>
+    <div id="adminTable"></div>
+  </div>
+
+  <!-- Toggle: Grid / Admin -->
+  <div style="text-align:center;padding:0 12px 16px;">
+    <button id="toggleViewBtn" style="padding:8px 20px;border:1px solid #667eea;border-radius:20px;background:#fff;color:#667eea;font-size:13px;cursor:pointer;">查看预约记录</button>
+  </div>
 </div>
 
 <!-- BOOKING MODAL -->
@@ -478,6 +521,11 @@ var elToast = $('toast');
 var elLoading = $('loading');
 var elSigCanvas = $('sigCanvas');
 var elClearSigBtn = $('clearSigBtn');
+var elAdminView = $('adminView');
+var elAdminTable = $('adminTable');
+var elToggleViewBtn = $('toggleViewBtn');
+var currentBookings = [];
+var isAdminView = false;
 
 // ============================================================
 // SIGNATURE PAD
@@ -754,6 +802,9 @@ function loadAndRender() {
   }).then(function(bookings) {
     showLoading(false);
 
+    // Store globally for admin view
+    currentBookings = bookings;
+
     // Build lookup: "roomNumber-timeSlot" -> booking
     var bookingMap = {};
     bookings.forEach(function(b) {
@@ -816,6 +867,52 @@ function loadAndRender() {
 }
 
 // ============================================================
+// ADMIN VIEW
+// ============================================================
+function toggleView() {
+  isAdminView = !isAdminView;
+  if (isAdminView) {
+    elRoomList.style.display = 'none';
+    elAdminView.style.display = 'block';
+    elToggleViewBtn.textContent = '返回预约界面';
+    renderAdminTable();
+  } else {
+    elRoomList.style.display = 'block';
+    elAdminView.style.display = 'none';
+    elToggleViewBtn.textContent = '查看预约记录';
+  }
+}
+
+function renderAdminTable() {
+  if (currentBookings.length === 0) {
+    elAdminTable.innerHTML = '<div class="no-bookings">暂无预约记录</div>';
+    return;
+  }
+
+  var sorted = currentBookings.slice().sort(function(a, b) {
+    if (a.r !== b.r) return a.r - b.r;
+    return a.t - b.t;
+  });
+
+  var html = '<table class="admin-table"><thead><tr><th>琴房</th><th>时段</th><th>姓名</th><th>手机号</th><th>签名</th></tr></thead><tbody>';
+
+  sorted.forEach(function(b) {
+    var timeLabel = (b.t < 10 ? '0' : '') + b.t + ':00-' + (b.t + 1) + ':00';
+    var sigImg = b.s ? '<img class="sig-thumb" src="' + escapeHtml(b.s) + '" alt="签名">' : '-';
+    html += '<tr>' +
+      '<td>' + b.r + '</td>' +
+      '<td>' + timeLabel + '</td>' +
+      '<td>' + escapeHtml(b.n) + '</td>' +
+      '<td>' + escapeHtml(b.p || '-') + '</td>' +
+      '<td>' + sigImg + '</td>' +
+      '</tr>';
+  });
+
+  html += '</tbody></table>';
+  elAdminTable.innerHTML = html;
+}
+
+// ============================================================
 // CHECK STATUS & INIT
 // ============================================================
 function checkStatus() {
@@ -860,6 +957,7 @@ function initApp() {
 
   $('confirmBtn').addEventListener('click', submitBooking);
   $('cancelBtn').addEventListener('click', closeModal);
+  elToggleViewBtn.addEventListener('click', toggleView);
 
   elBookingModal.addEventListener('click', function(e) {
     if (e.target === elBookingModal) closeModal();
