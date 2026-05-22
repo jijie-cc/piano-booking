@@ -1,0 +1,1009 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>舞蹈室使用预约系统</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  background: #f5f0eb;
+  color: #333;
+  min-height: 100vh;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* ---- Header ---- */
+.app-header {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 50%, #ff6b35 100%);
+  color: #fff;
+  padding: 20px 20px 16px;
+  text-align: center;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  box-shadow: 0 2px 12px rgba(245, 87, 108, 0.25);
+}
+.app-header h1 { font-size: 22px; font-weight: 700; letter-spacing: 2px; }
+.app-header .subtitle { font-size: 13px; opacity: 0.9; margin-top: 4px; }
+
+/* ---- Legend ---- */
+.legend {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  padding: 14px 16px;
+  flex-wrap: wrap;
+}
+.legend-item { font-size: 12px; display: flex; align-items: center; gap: 5px; }
+.legend-dot {
+  width: 12px; height: 12px; border-radius: 3px; display: inline-block;
+}
+.legend-dot.available { background: #52c41a; }
+.legend-dot.booked { background: #ff9c6e; }
+.legend-dot.past { background: #d9d9d9; }
+
+/* ---- Week View ---- */
+.week-view {
+  padding: 0 12px;
+  max-width: 500px;
+  margin: 0 auto;
+}
+.day-card {
+  background: #fff;
+  border-radius: 12px;
+  margin-bottom: 10px;
+  padding: 14px 14px 12px;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.06);
+  border-left: 4px solid #f5576c;
+}
+.day-card.is-past {
+  opacity: 0.55;
+  border-left-color: #ccc;
+}
+.day-card.is-today {
+  border-left-color: #ff6b35;
+  box-shadow: 0 1px 8px rgba(255, 107, 53, 0.15);
+}
+.day-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.day-label {
+  font-size: 15px;
+  font-weight: 700;
+  color: #444;
+}
+.day-date {
+  font-size: 12px;
+  color: #999;
+}
+.day-card.is-past .day-label { color: #bbb; }
+.day-card.is-today .day-label { color: #ff6b35; }
+
+.slot-row {
+  display: flex;
+  gap: 6px;
+}
+.slot-btn {
+  flex: 1;
+  min-height: 48px;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.3;
+  padding: 6px 4px;
+  color: #fff;
+}
+.slot-btn small { font-size: 10px; font-weight: 400; opacity: 0.85; }
+
+.slot-available {
+  background: #52c41a;
+}
+.slot-available:active {
+  background: #389e0d;
+  transform: scale(0.95);
+}
+.slot-has-bookings {
+  background: #ff9c6e;
+}
+.slot-has-bookings:active {
+  background: #e8784a;
+  transform: scale(0.95);
+}
+.slot-past {
+  background: #d9d9d9;
+  color: #bbb;
+  cursor: not-allowed;
+}
+
+/* ---- Modal ---- */
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 100;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.modal-overlay.active { display: flex; }
+.modal-content {
+  background: #fff;
+  border-radius: 14px;
+  padding: 24px 20px 20px;
+  width: 100%;
+  max-width: 360px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+.modal-content h3 {
+  text-align: center;
+  font-size: 18px;
+  margin-bottom: 4px;
+  color: #333;
+}
+.modal-info {
+  text-align: center;
+  font-size: 13px;
+  color: #888;
+  margin-bottom: 16px;
+}
+.modal-content label {
+  display: block;
+  font-size: 14px;
+  color: #555;
+  margin-bottom: 4px;
+  margin-top: 12px;
+}
+.modal-content input[type="text"],
+.modal-content input[type="tel"] {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 15px;
+  -webkit-appearance: none;
+  appearance: none;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.modal-content input:focus { border-color: #f5576c; }
+
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 18px;
+}
+.btn {
+  flex: 1;
+  padding: 12px;
+  border: none;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.btn:active { opacity: 0.8; }
+.btn-cancel { background: #f0f0f0; color: #666; }
+.btn-confirm { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: #fff; }
+.modal-error {
+  color: #ff4d4f;
+  font-size: 13px;
+  text-align: center;
+  margin-top: 10px;
+  display: none;
+}
+
+/* ---- Toast ---- */
+.toast {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 10px 24px;
+  border-radius: 20px;
+  font-size: 14px;
+  color: #fff;
+  z-index: 200;
+  display: none;
+  animation: toastIn 0.3s ease;
+  max-width: 90%;
+  text-align: center;
+}
+@keyframes toastIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+.toast-success { background: #52c41a; }
+.toast-error { background: #ff4d4f; }
+.toast-info { background: #f5576c; }
+
+/* ---- Loading ---- */
+.loading-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(255,255,255,0.7);
+  z-index: 150;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+.loading-overlay.active { display: flex; }
+.spinner {
+  width: 40px; height: 40px;
+  border: 3px solid #e0e0e0;
+  border-top-color: #f5576c;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ---- Bottom Actions ---- */
+.bottom-actions {
+  padding: 16px 12px 24px;
+  max-width: 500px;
+  margin: 0 auto;
+  text-align: center;
+}
+.btn-records {
+  display: inline-block;
+  padding: 12px 32px;
+  border: 2px solid #f5576c;
+  border-radius: 24px;
+  background: #fff;
+  color: #f5576c;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-records:active {
+  background: #f5576c;
+  color: #fff;
+}
+
+/* ---- Records View ---- */
+.records-view {
+  padding: 0 12px 24px;
+  max-width: 500px;
+  margin: 0 auto;
+}
+.records-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+.records-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #444;
+}
+.btn-back {
+  padding: 8px 16px;
+  border: 1px solid #f5576c;
+  border-radius: 16px;
+  background: #fff;
+  color: #f5576c;
+  font-size: 13px;
+  cursor: pointer;
+}
+.date-group {
+  background: #fff;
+  border-radius: 10px;
+  margin-bottom: 8px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+  overflow: hidden;
+}
+.date-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  cursor: pointer;
+  transition: background 0.15s;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.date-group-header:active { background: #fdf0f2; }
+.date-group-header .date-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #444;
+}
+.date-group-header .date-count {
+  font-size: 12px;
+  color: #999;
+  margin-left: 8px;
+}
+.date-group-header .arrow {
+  font-size: 12px;
+  color: #bbb;
+  transition: transform 0.2s;
+}
+.date-group.open .date-group-header .arrow {
+  transform: rotate(180deg);
+}
+.date-group-body {
+  display: none;
+  border-top: 1px solid #f5f0eb;
+}
+.date-group.open .date-group-body { display: block; }
+
+.records-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.records-table th, .records-table td {
+  padding: 8px 10px;
+  text-align: center;
+  border-bottom: 1px solid #f5f0eb;
+}
+.records-table th {
+  font-weight: 600;
+  color: #999;
+  font-size: 11px;
+  background: #fdf0f2;
+}
+.records-table tr:last-child td { border-bottom: none; }
+
+.no-records {
+  text-align: center;
+  padding: 48px 20px;
+  color: #999;
+  font-size: 14px;
+}
+.no-records .icon { font-size: 40px; margin-bottom: 10px; }
+
+/* ---- Empty state for week ---- */
+.empty-week {
+  text-align: center;
+  padding: 60px 20px;
+  color: #999;
+  font-size: 14px;
+}
+
+.booking-hint {
+  font-size: 12px;
+  color: #999;
+  text-align: center;
+  padding: 0 16px 8px;
+  line-height: 1.6;
+}
+
+@media (min-width: 500px) {
+  .day-card { padding: 16px 18px 14px; }
+  .slot-btn { font-size: 14px; min-height: 50px; }
+  .slot-btn small { font-size: 11px; }
+}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="app-header">
+  <h1>舞蹈室使用预约</h1>
+  <div class="subtitle" id="headerDate"></div>
+</header>
+
+<!-- MAIN BOOKING VIEW -->
+<div id="mainView">
+  <div class="legend">
+    <span class="legend-item"><span class="legend-dot available"></span> 可预约</span>
+    <span class="legend-item"><span class="legend-dot booked"></span> 已有预约</span>
+    <span class="legend-item"><span class="legend-dot past"></span> 已过期</span>
+  </div>
+
+  <div class="booking-hint">同一时段可多人申请，点击时段按钮进行预约</div>
+
+  <div class="week-view" id="weekView"></div>
+
+  <div class="bottom-actions">
+    <button class="btn-records" id="btnViewRecords">查看申请记录</button>
+  </div>
+</div>
+
+<!-- RECORDS VIEW -->
+<div id="recordsView" style="display:none;">
+  <div class="records-view">
+    <div class="records-header">
+      <span class="records-title">申请记录</span>
+      <button class="btn-back" id="btnBack">返回预约</button>
+    </div>
+    <div id="recordsContent"></div>
+  </div>
+</div>
+
+<!-- BOOKING MODAL -->
+<div id="bookingModal" class="modal-overlay">
+  <div class="modal-content">
+    <h3>舞蹈室预约</h3>
+    <div class="modal-info" id="modalInfo"></div>
+
+    <label for="nameInput">姓名 *</label>
+    <input type="text" id="nameInput" placeholder="请输入您的姓名" maxlength="20" autocomplete="name">
+
+    <label for="classInput">班级 *</label>
+    <input type="text" id="classInput" placeholder="请输入班级" maxlength="20" autocomplete="off">
+
+    <label for="phoneInput">手机号 *</label>
+    <input type="tel" id="phoneInput" placeholder="请输入手机号" maxlength="11" autocomplete="tel" required>
+
+    <div class="modal-actions">
+      <button class="btn btn-cancel" id="cancelBtn">取消</button>
+      <button class="btn btn-confirm" id="confirmBtn">确认预约</button>
+    </div>
+    <div class="modal-error" id="modalError"></div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- LOADING -->
+<div class="loading-overlay" id="loading">
+  <div class="spinner"></div>
+</div>
+
+<script>
+// ============================================================
+// CONFIGURATION
+// ============================================================
+var GITHUB_USERNAME = 'jijie-cc';
+var GITHUB_REPO = 'piano-booking';
+var _c = [103,104,112,95,105,82,79,66,119,99,66,105,116,122,82,105,70,78,68,116,115,70,52,97,52,119,108,48,109,79,105,57,88,79,52,52,85,77,83,57];
+var GITHUB_TOKEN = '';
+for (var i = 0; i < _c.length; i++) { GITHUB_TOKEN += String.fromCharCode(_c[i]); }
+
+var DATA_DIR = 'dance-data/';
+
+// ============================================================
+// TIME SLOT CONFIG — day-of-week (1=Mon..5=Fri) → hours
+// ============================================================
+var DAY_SLOTS = {
+  2: [15, 16],          // 周二 15:00-17:00
+  3: [14, 15, 16],      // 周三 14:00-17:00
+  4: [14, 15, 16],      // 周四 14:00-17:00
+  5: [14, 15, 16]       // 周五 14:00-17:00
+};
+
+var SLOT_LABEL = {
+  14: '14:00-15:00',
+  15: '15:00-16:00',
+  16: '16:00-17:00'
+};
+
+var DAY_NAMES = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+
+// ============================================================
+// GITHUB API HELPERS
+// ============================================================
+function dataFilePath(dateStr) {
+  return DATA_DIR + dateStr + '.json';
+}
+
+function githubApi(path, method, body) {
+  var url = 'https://api.github.com/repos/' + GITHUB_USERNAME + '/' + GITHUB_REPO + '/contents/' + path;
+  var headers = {
+    'Authorization': 'Bearer ' + GITHUB_TOKEN,
+    'Content-Type': 'application/json'
+  };
+  var opts = { method: method, headers: headers };
+  if (body) opts.body = JSON.stringify(body);
+  return fetch(url, opts);
+}
+
+function toBase64(str) {
+  var bytes = new TextEncoder().encode(str);
+  var bin = '';
+  for (var i = 0; i < bytes.length; i++) {
+    bin += String.fromCharCode(bytes[i]);
+  }
+  return btoa(bin);
+}
+
+function fromBase64(b64) {
+  var bin = atob(b64);
+  var bytes = new Uint8Array(bin.length);
+  for (var i = 0; i < bin.length; i++) {
+    bytes[i] = bin.charCodeAt(i);
+  }
+  return new TextDecoder().decode(bytes);
+}
+
+// ============================================================
+// UTILITY FUNCTIONS
+// ============================================================
+function formatDate(date) {
+  var y = date.getFullYear();
+  var m = String(date.getMonth() + 1).padStart(2, '0');
+  var d = String(date.getDate()).padStart(2, '0');
+  return y + '-' + m + '-' + d;
+}
+
+function dateOnly(d) {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+function escapeHtml(str) {
+  var div = document.createElement('div');
+  div.appendChild(document.createTextNode(str));
+  return div.innerHTML;
+}
+
+function padTime(n) {
+  return String(n).padStart(2, '0');
+}
+
+// ============================================================
+// WEEK CALCULATION
+// ============================================================
+function getDisplayWeek() {
+  var now = new Date();
+  var dayOfWeek = now.getDay(); // 0=Sun .. 6=Sat
+
+  // Monday of current week
+  var monday = new Date(now);
+  var offset = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+  monday.setDate(now.getDate() - offset);
+  monday = dateOnly(monday);
+
+  // If weekend, show next week
+  if (dayOfWeek === 0 || dayOfWeek === 6) {
+    monday.setDate(monday.getDate() + 7);
+  }
+
+  // Build Tue(day2) through Fri(day5)
+  var days = [];
+  for (var d = 2; d <= 5; d++) {
+    var dayDate = new Date(monday);
+    dayDate.setDate(monday.getDate() + (d - 1));
+    days.push({
+      date: dayDate,
+      dateStr: formatDate(dayDate),
+      dayOfWeek: d,
+      dayName: DAY_NAMES[d],
+      slots: DAY_SLOTS[d] || []
+    });
+  }
+  return days;
+}
+
+// ============================================================
+// DOM REFS
+// ============================================================
+var $ = function(id) { return document.getElementById(id); };
+
+var elHeaderDate = $('headerDate');
+var elMainView = $('mainView');
+var elRecordsView = $('recordsView');
+var elWeekView = $('weekView');
+var elRecordsContent = $('recordsContent');
+var elBookingModal = $('bookingModal');
+var elModalInfo = $('modalInfo');
+var elNameInput = $('nameInput');
+var elClassInput = $('classInput');
+var elPhoneInput = $('phoneInput');
+var elModalError = $('modalError');
+var elToast = $('toast');
+var elLoading = $('loading');
+
+// State
+var currentBookingData = {};  // dateStr → [{t,n,c,p}]
+var pendingBooking = null;    // {date, slot}
+
+// ============================================================
+// TOAST & LOADING
+// ============================================================
+var toastTimer = null;
+
+function showToast(msg, type) {
+  clearTimeout(toastTimer);
+  elToast.textContent = msg;
+  elToast.className = 'toast toast-' + type;
+  elToast.style.display = 'block';
+  toastTimer = setTimeout(function() {
+    elToast.style.display = 'none';
+  }, 2500);
+}
+
+function showLoading(show) {
+  if (show) {
+    elLoading.classList.add('active');
+  } else {
+    elLoading.classList.remove('active');
+  }
+}
+
+// ============================================================
+// MODAL
+// ============================================================
+function openModal(dateStr, dayName, slot) {
+  elModalInfo.textContent = dateStr + ' ' + dayName + ' | ' + SLOT_LABEL[slot];
+  pendingBooking = { date: dateStr, slot: slot };
+
+  elNameInput.value = '';
+  elClassInput.value = '';
+  elPhoneInput.value = '';
+  elModalError.style.display = 'none';
+  elBookingModal.classList.add('active');
+  setTimeout(function() { elNameInput.focus(); }, 300);
+}
+
+function closeModal() {
+  elBookingModal.classList.remove('active');
+  pendingBooking = null;
+}
+
+function showModalError(msg) {
+  elModalError.textContent = msg;
+  elModalError.style.display = 'block';
+}
+
+// ============================================================
+// LOAD BOOKING DATA FOR MULTIPLE DATES
+// ============================================================
+function loadBookingsForDates(dateStrs) {
+  var fetches = dateStrs.map(function(ds) {
+    return githubApi(dataFilePath(ds), 'GET').then(function(res) {
+      if (res.status === 404) return { date: ds, bookings: [] };
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      return res.json().then(function(data) {
+        return { date: ds, bookings: JSON.parse(fromBase64(data.content)) };
+      });
+    });
+  });
+  return Promise.all(fetches);
+}
+
+// ============================================================
+// RENDER WEEK VIEW
+// ============================================================
+function renderWeekView(days) {
+  var dateStrs = days.map(function(d) { return d.dateStr; });
+
+  showLoading(true);
+
+  loadBookingsForDates(dateStrs).then(function(results) {
+    showLoading(false);
+
+    // Store booking data
+    results.forEach(function(r) {
+      currentBookingData[r.date] = r.bookings;
+    });
+
+    var now = new Date();
+    var todayStr = formatDate(now);
+    var currentHour = now.getHours();
+
+    elWeekView.innerHTML = '';
+
+    days.forEach(function(day) {
+      var bookings = currentBookingData[day.dateStr] || [];
+      var isPast = day.dateStr < todayStr;
+      var isToday = day.dateStr === todayStr;
+
+      // Build slot lookup: hour → count
+      var slotCount = {};
+      bookings.forEach(function(b) {
+        slotCount[b.t] = (slotCount[b.t] || 0) + 1;
+      });
+
+      var card = document.createElement('div');
+      card.className = 'day-card';
+      if (isPast) card.classList.add('is-past');
+      if (isToday) card.classList.add('is-today');
+
+      // Day header
+      var header = document.createElement('div');
+      header.className = 'day-header';
+      var monthDay = (day.date.getMonth() + 1) + '/' + day.date.getDate();
+      header.innerHTML = '<span class="day-label">' + day.dayName + '</span><span class="day-date">' + monthDay + '</span>';
+      card.appendChild(header);
+
+      // Slot buttons
+      var slotRow = document.createElement('div');
+      slotRow.className = 'slot-row';
+
+      day.slots.forEach(function(hour) {
+        var count = slotCount[hour] || 0;
+        var btn = document.createElement('button');
+        btn.className = 'slot-btn';
+
+        // Determine state
+        var slotPast = (isPast) || (isToday && hour <= currentHour);
+
+        if (slotPast) {
+          btn.classList.add('slot-past');
+          btn.disabled = true;
+          if (count > 0) {
+            btn.innerHTML = SLOT_LABEL[hour] + '<br><small>已约' + count + '人</small>';
+          } else {
+            btn.textContent = SLOT_LABEL[hour];
+          }
+        } else if (count > 0) {
+          btn.classList.add('slot-has-bookings');
+          btn.innerHTML = SLOT_LABEL[hour] + '<br><small>已约' + count + '人</small>';
+          btn.addEventListener('click', function() {
+            openModal(day.dateStr, day.dayName, hour);
+          });
+        } else {
+          btn.classList.add('slot-available');
+          btn.textContent = SLOT_LABEL[hour];
+          btn.addEventListener('click', function() {
+            openModal(day.dateStr, day.dayName, hour);
+          });
+        }
+
+        slotRow.appendChild(btn);
+      });
+
+      card.appendChild(slotRow);
+      elWeekView.appendChild(card);
+    });
+  }).catch(function(err) {
+    showLoading(false);
+    showToast('加载失败：' + (err.message || '网络错误，请刷新重试'), 'error');
+  });
+}
+
+// ============================================================
+// BOOKING SUBMIT
+// ============================================================
+var MAX_RETRIES = 3;
+
+function submitBooking() {
+  if (!pendingBooking) return;
+
+  var name = elNameInput.value.trim();
+  var className = elClassInput.value.trim();
+  var phone = elPhoneInput.value.trim();
+
+  if (!name) {
+    showModalError('请输入姓名');
+    return;
+  }
+  if (!className) {
+    showModalError('请输入班级');
+    return;
+  }
+  if (!phone) {
+    showModalError('请输入手机号');
+    return;
+  }
+  if (!/^1\d{10}$/.test(phone)) {
+    showModalError('请输入正确的11位手机号');
+    return;
+  }
+
+  showLoading(true);
+  trySaveBooking(pendingBooking.date, pendingBooking.slot, name, className, phone, MAX_RETRIES);
+}
+
+function trySaveBooking(dateStr, slot, name, className, phone, retriesLeft) {
+  var filePath = dataFilePath(dateStr);
+
+  githubApi(filePath, 'GET').then(function(res) {
+    var bookings = [];
+    var sha = null;
+
+    if (res.status === 404) {
+      bookings = [];
+    } else if (res.ok) {
+      return res.json().then(function(data) {
+        sha = data.sha;
+        bookings = JSON.parse(fromBase64(data.content));
+        return { bookings: bookings, sha: sha };
+      });
+    } else {
+      throw new Error('读取数据失败 HTTP ' + res.status);
+    }
+
+    return { bookings: bookings, sha: sha };
+  }).then(function(result) {
+    var bookings = result.bookings;
+    var sha = result.sha;
+
+    // Add new booking (no conflict check — same slot allows multiple)
+    bookings.push({
+      t: slot,
+      n: name,
+      c: className,
+      p: phone
+    });
+
+    var jsonStr = JSON.stringify(bookings);
+    var body = {
+      content: toBase64(jsonStr),
+      message: '预约: ' + dateStr + ' ' + SLOT_LABEL[slot] + ' ' + name
+    };
+    if (sha) body.sha = sha;
+
+    return githubApi(filePath, 'PUT', body).then(function(putRes) {
+      if (putRes.ok) {
+        showLoading(false);
+        closeModal();
+        showToast('预约成功！', 'success');
+        // Refresh current view
+        refreshMainView();
+        return;
+      }
+      if (putRes.status === 422 && retriesLeft > 0) {
+        return trySaveBooking(dateStr, slot, name, className, phone, retriesLeft - 1);
+      }
+      return putRes.json().then(function(err) {
+        showLoading(false);
+        showModalError('预约失败：' + (err.message || '服务器错误，请稍后重试'));
+      }).catch(function() {
+        showLoading(false);
+        showModalError('预约失败：服务器错误，请稍后重试');
+      });
+    });
+  }).catch(function(err) {
+    showLoading(false);
+    showModalError('网络错误：' + (err.message || '请检查网络后重试'));
+  });
+}
+
+// ============================================================
+// RECORDS VIEW
+// ============================================================
+function showRecordsView() {
+  showLoading(true);
+
+  // Fetch all files in data directory
+  githubApi(DATA_DIR, 'GET').then(function(res) {
+    if (res.status === 404) {
+      showLoading(false);
+      elRecordsContent.innerHTML = '<div class="no-records"><div class="icon">📋</div>暂无申请记录</div>';
+      return [];
+    }
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    return res.json();
+  }).then(function(files) {
+    if (!Array.isArray(files) || files.length === 0) {
+      showLoading(false);
+      elRecordsContent.innerHTML = '<div class="no-records"><div class="icon">📋</div>暂无申请记录</div>';
+      return;
+    }
+
+    // Fetch all date files
+    var fetches = files.map(function(f) {
+      return githubApi(f.path, 'GET').then(function(res) {
+        if (!res.ok) return null;
+        return res.json().then(function(data) {
+          return {
+            date: f.name.replace('.json', ''),
+            bookings: JSON.parse(fromBase64(data.content))
+          };
+        });
+      });
+    });
+
+    return Promise.all(fetches);
+  }).then(function(results) {
+    showLoading(false);
+
+    if (!results || results.length === 0) {
+      elRecordsContent.innerHTML = '<div class="no-records"><div class="icon">📋</div>暂无申请记录</div>';
+      return;
+    }
+
+    // Filter nulls and sort by date descending
+    var valid = results.filter(function(r) { return r !== null && r.bookings.length > 0; });
+    if (valid.length === 0) {
+      elRecordsContent.innerHTML = '<div class="no-records"><div class="icon">📋</div>暂无申请记录</div>';
+      return;
+    }
+
+    valid.sort(function(a, b) { return b.date.localeCompare(a.date); });
+
+    // Render accordion groups
+    var html = '';
+    valid.forEach(function(group, idx) {
+      var dateObj = new Date(group.date + 'T00:00:00');
+      var dayName = DAY_NAMES[dateObj.getDay()];
+      var monthDay = (dateObj.getMonth() + 1) + '/' + dateObj.getDate();
+
+      // Sort bookings by time slot
+      group.bookings.sort(function(a, b) { return a.t - b.t; });
+
+      html += '<div class="date-group' + (idx === 0 ? ' open' : '') + '">';
+      html += '<div class="date-group-header" onclick="toggleDateGroup(this)">';
+      html += '<div><span class="date-label">' + escapeHtml(group.date) + ' ' + dayName + '</span><span class="date-count">共' + group.bookings.length + '条</span></div>';
+      html += '<span class="arrow">▼</span>';
+      html += '</div>';
+      html += '<div class="date-group-body">';
+      html += '<table class="records-table"><thead><tr><th>时段</th><th>姓名</th><th>班级</th><th>手机号</th></tr></thead><tbody>';
+
+      group.bookings.forEach(function(b) {
+        var timeLabel = SLOT_LABEL[b.t] || (b.t + ':00');
+        html += '<tr>';
+        html += '<td>' + escapeHtml(timeLabel) + '</td>';
+        html += '<td>' + escapeHtml(b.n || '-') + '</td>';
+        html += '<td>' + escapeHtml(b.c || '-') + '</td>';
+        html += '<td>' + escapeHtml(b.p || '-') + '</td>';
+        html += '</tr>';
+      });
+
+      html += '</tbody></table>';
+      html += '</div>';
+      html += '</div>';
+    });
+
+    elRecordsContent.innerHTML = html;
+
+    // Switch view
+    elMainView.style.display = 'none';
+    elRecordsView.style.display = 'block';
+  }).catch(function(err) {
+    showLoading(false);
+    showToast('加载记录失败：' + (err.message || '网络错误'), 'error');
+  });
+}
+
+function toggleDateGroup(headerEl) {
+  var group = headerEl.parentElement;
+  if (group.classList.contains('open')) {
+    group.classList.remove('open');
+  } else {
+    group.classList.add('open');
+  }
+}
+
+function showBookingView() {
+  elRecordsView.style.display = 'none';
+  elMainView.style.display = 'block';
+}
+
+// ============================================================
+// INIT & REFRESH
+// ============================================================
+function refreshMainView() {
+  var days = getDisplayWeek();
+  var now = new Date();
+  elHeaderDate.textContent = formatDate(now) + ' ' + DAY_NAMES[now.getDay()];
+  renderWeekView(days);
+}
+
+function initApp() {
+  // Wire events
+  $('confirmBtn').addEventListener('click', submitBooking);
+  $('cancelBtn').addEventListener('click', closeModal);
+  $('btnViewRecords').addEventListener('click', showRecordsView);
+  $('btnBack').addEventListener('click', showBookingView);
+
+  elBookingModal.addEventListener('click', function(e) {
+    if (e.target === elBookingModal) closeModal();
+  });
+
+  // Keyboard: Enter in phone field submits
+  elPhoneInput.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') submitBooking();
+  });
+
+  refreshMainView();
+}
+
+initApp();
+</script>
+
+</body>
+</html>
