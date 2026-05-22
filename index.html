@@ -361,8 +361,11 @@ body {
 
   <!-- Admin: booking records table -->
   <div class="room-list" id="adminView" style="display:none;">
-    <div style="text-align:center;margin-bottom:12px;font-weight:600;color:#555;">今日预约记录</div>
+    <div style="text-align:center;margin-bottom:8px;font-weight:600;color:#555;">今日预约记录</div>
     <div id="adminTable"></div>
+    <div style="text-align:center;margin-top:12px;">
+      <button id="exportAllBtn" style="padding:10px 24px;border:none;border-radius:8px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;font-size:14px;cursor:pointer;">导出全部记录</button>
+    </div>
   </div>
 
   <!-- Toggle: Grid / Admin -->
@@ -524,6 +527,7 @@ var elClearSigBtn = $('clearSigBtn');
 var elAdminView = $('adminView');
 var elAdminTable = $('adminTable');
 var elToggleViewBtn = $('toggleViewBtn');
+var elExportAllBtn = $('exportAllBtn');
 var currentBookings = [];
 var isAdminView = false;
 
@@ -913,6 +917,102 @@ function renderAdminTable() {
 }
 
 // ============================================================
+// EXPORT ALL BOOKINGS
+// ============================================================
+function exportAllBookings() {
+  showLoading(true);
+
+  // Fetch list of all data files
+  githubApi('data/', 'GET').then(function(res) {
+    if (res.status === 404) {
+      showLoading(false);
+      showToast('暂无任何预约记录', 'info');
+      return [];
+    }
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    return res.json();
+  }).then(function(files) {
+    if (!Array.isArray(files) || files.length === 0) {
+      showLoading(false);
+      showToast('暂无任何预约记录', 'info');
+      return;
+    }
+
+    // Fetch all date files in parallel
+    var fetches = files.map(function(f) {
+      return githubApi(f.path, 'GET').then(function(res) {
+        if (!res.ok) return null;
+        return res.json().then(function(data) {
+          var bookings = JSON.parse(fromBase64(data.content));
+          var dateStr = f.name.replace('.json', '');
+          // Add date to each booking record
+          return bookings.map(function(b) {
+            b.date = dateStr;
+            return b;
+          });
+        });
+      });
+    });
+
+    return Promise.all(fetches);
+  }).then(function(results) {
+    showLoading(false);
+
+    // Flatten and sort by date (newest first), then room, then time
+    var allBookings = [];
+    results.forEach(function(arr) {
+      if (arr) allBookings = allBookings.concat(arr);
+    });
+
+    if (allBookings.length === 0) {
+      showToast('暂无任何预约记录', 'info');
+      return;
+    }
+
+    allBookings.sort(function(a, b) {
+      if (a.date !== b.date) return b.date.localeCompare(a.date);
+      if (a.r !== b.r) return a.r - b.r;
+      return a.t - b.t;
+    });
+
+    // Build export HTML
+    var timeSlots = {14:'14:00-15:00',15:'15:00-16:00',16:'16:00-17:00',17:'17:00-18:00',18:'18:00-19:00',19:'19:00-20:00',20:'20:00-21:00'};
+    var now = new Date();
+    var html = '<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><title>钢琴房预约记录汇总</title>';
+    html += '<style>body{font-family:"PingFang SC","Microsoft YaHei",sans-serif;padding:20px;max-width:1000px;margin:0 auto;color:#333;}';
+    html += 'h1{text-align:center;font-size:20px;margin-bottom:4px;}';
+    html += '.info{text-align:center;font-size:12px;color:#999;margin-bottom:20px;}';
+    html += 'table{width:100%;border-collapse:collapse;font-size:12px;}';
+    html += 'th,td{padding:6px 8px;border:1px solid #ddd;text-align:center;}';
+    html += 'th{background:#667eea;color:#fff;font-weight:500;}';
+    html += 'tr:nth-child(even){background:#f9f9f9;}';
+    html += '.sig-img{max-width:80px;max-height:40px;}';
+    html += '@media print{body{padding:10px;}button{display:none;}}';
+    html += '</style></head><body>';
+    html += '<h1>钢琴房预约记录汇总</h1>';
+    html += '<div class="info">导出时间：' + formatDate(now) + ' ' + padTime(now.getHours()) + ':' + padTime(now.getMinutes()) + ' | 共 ' + allBookings.length + ' 条记录</div>';
+    html += '<table><thead><tr><th>日期</th><th>琴房</th><th>时段</th><th>姓名</th><th>手机号</th><th>签名</th></tr></thead><tbody>';
+
+    allBookings.forEach(function(b) {
+      var sigHtml = b.s ? '<img class="sig-img" src="' + escapeHtml(b.s) + '" alt="签名">' : '-';
+      html += '<tr><td>' + escapeHtml(b.date) + '</td><td>' + b.r + '</td><td>' + (timeSlots[b.t] || b.t+':00') + '</td><td>' + escapeHtml(b.n) + '</td><td>' + escapeHtml(b.p || '-') + '</td><td>' + sigHtml + '</td></tr>';
+    });
+
+    html += '</tbody></table>';
+    html += '<div style="text-align:center;margin-top:16px;"><button onclick="window.print()" style="padding:10px 30px;background:#667eea;color:#fff;border:none;border-radius:8px;font-size:14px;cursor:pointer;">打印 / 保存 PDF</button></div>';
+    html += '</body></html>';
+
+    // Open in new tab
+    var w = window.open('', '_blank');
+    w.document.write(html);
+    w.document.close();
+  }).catch(function(err) {
+    showLoading(false);
+    showToast('导出失败：' + (err.message || '网络错误'), 'error');
+  });
+}
+
+// ============================================================
 // CHECK STATUS & INIT
 // ============================================================
 function checkStatus() {
@@ -958,6 +1058,7 @@ function initApp() {
   $('confirmBtn').addEventListener('click', submitBooking);
   $('cancelBtn').addEventListener('click', closeModal);
   elToggleViewBtn.addEventListener('click', toggleView);
+  elExportAllBtn.addEventListener('click', exportAllBookings);
 
   elBookingModal.addEventListener('click', function(e) {
     if (e.target === elBookingModal) closeModal();
