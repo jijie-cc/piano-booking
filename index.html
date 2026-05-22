@@ -281,9 +281,14 @@ body {
 /* ---- Footer ---- */
 .app-footer {
   text-align: center;
-  padding: 20px;
-  font-size: 12px;
-  color: #bbb;
+  padding: 16px 20px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #ff4d4f;
+  background: #fff3f3;
+  margin: 12px 12px 24px;
+  border-radius: 10px;
+  border: 2px solid #ffccc7;
 }
 
 /* ---- Admin Table ---- */
@@ -397,6 +402,9 @@ body {
 
     <label for="nameInput">姓名 *</label>
     <input type="text" id="nameInput" placeholder="请输入您的姓名" maxlength="20" autocomplete="name">
+
+    <label for="classInput">班级 *</label>
+    <input type="text" id="classInput" placeholder="请输入班级" maxlength="20" autocomplete="off">
 
     <label for="phoneInput">手机号（选填）</label>
     <input type="tel" id="phoneInput" placeholder="请输入手机号" maxlength="11" autocomplete="tel">
@@ -535,6 +543,7 @@ var elRoomList = $('roomList');
 var elBookingModal = $('bookingModal');
 var elModalInfo = $('modalInfo');
 var elNameInput = $('nameInput');
+var elClassInput = $('classInput');
 var elPhoneInput = $('phoneInput');
 var elModalError = $('modalError');
 var elToast = $('toast');
@@ -679,6 +688,7 @@ function openModal(roomNumber, roomName, date, slot) {
   elBookingModal.dataset.slot = slot;
 
   elNameInput.value = '';
+  elClassInput.value = '';
   elPhoneInput.value = '';
   elModalError.style.display = 'none';
   elBookingModal.classList.add('active');
@@ -706,11 +716,16 @@ function submitBooking() {
   var date = elBookingModal.dataset.date;
   var slot = parseInt(elBookingModal.dataset.slot);
   var name = elNameInput.value.trim();
+  var className = elClassInput.value.trim();
   var phone = elPhoneInput.value.trim();
   var signature = getSignatureData();
 
   if (!name) {
     showModalError('请输入姓名');
+    return;
+  }
+  if (!className) {
+    showModalError('请输入班级');
     return;
   }
   if (!signature) {
@@ -719,10 +734,10 @@ function submitBooking() {
   }
 
   showLoading(true);
-  trySaveBooking(roomNumber, date, slot, name, phone, signature, MAX_RETRIES);
+  trySaveBooking(roomNumber, date, slot, name, className, phone, signature, MAX_RETRIES);
 }
 
-function trySaveBooking(roomNumber, date, slot, name, phone, signature, retriesLeft) {
+function trySaveBooking(roomNumber, date, slot, name, className, phone, signature, retriesLeft) {
   var filePath = dataFilePath(date);
 
   // Step 1: Read current data file
@@ -763,6 +778,7 @@ function trySaveBooking(roomNumber, date, slot, name, phone, signature, retriesL
       r: roomNumber,
       t: slot,
       n: name,
+      c: className,
       p: phone,
       s: signature
     });
@@ -922,7 +938,7 @@ function renderAdminTable() {
     return a.t - b.t;
   });
 
-  var html = '<table class="admin-table"><thead><tr><th>琴房</th><th>时段</th><th>姓名</th><th>手机号</th><th>签名</th></tr></thead><tbody>';
+  var html = '<table class="admin-table"><thead><tr><th>琴房</th><th>时段</th><th>姓名</th><th>班级</th><th>手机号</th><th>签名</th></tr></thead><tbody>';
 
   sorted.forEach(function(b) {
     var timeLabel = (b.t < 10 ? '0' : '') + b.t + ':00-' + (b.t + 1) + ':00';
@@ -931,6 +947,7 @@ function renderAdminTable() {
       '<td>' + b.r + '</td>' +
       '<td>' + timeLabel + '</td>' +
       '<td>' + escapeHtml(b.n) + '</td>' +
+      '<td>' + escapeHtml(b.c || '-') + '</td>' +
       '<td>' + escapeHtml(b.p || '-') + '</td>' +
       '<td>' + sigImg + '</td>' +
       '</tr>';
@@ -1007,11 +1024,11 @@ function exportAllBookings() {
     html += '<style>table{border-collapse:collapse;}th,td{border:1px solid #000;padding:6px 8px;text-align:center;font-size:12px;}';
     html += 'th{background:#667eea;color:#fff;}.sig-img{max-width:80px;max-height:40px;}</style></head><body>';
     html += '<h3>钢琴房预约记录汇总 — ' + formatDate(now) + '（共' + allBookings.length + '条）</h3>';
-    html += '<table><tr><th>日期</th><th>琴房</th><th>时段</th><th>姓名</th><th>手机号</th><th>签名</th></tr>';
+    html += '<table><tr><th>日期</th><th>琴房</th><th>时段</th><th>姓名</th><th>班级</th><th>手机号</th><th>签名</th></tr>';
 
     allBookings.forEach(function(b) {
       var sigHtml = b.s ? '<img class="sig-img" src="' + escapeHtml(b.s) + '">' : '-';
-      html += '<tr><td>' + escapeHtml(b.date) + '</td><td>' + b.r + '</td><td>' + (timeSlots[b.t] || b.t+':00') + '</td><td>' + escapeHtml(b.n) + '</td><td>' + escapeHtml(b.p || '-') + '</td><td>' + sigHtml + '</td></tr>';
+      html += '<tr><td>' + escapeHtml(b.date) + '</td><td>' + b.r + '</td><td>' + (timeSlots[b.t] || b.t+':00') + '</td><td>' + escapeHtml(b.n) + '</td><td>' + escapeHtml(b.c || '-') + '</td><td>' + escapeHtml(b.p || '-') + '</td><td>' + sigHtml + '</td></tr>';
     });
 
     html += '</table></body></html>';
