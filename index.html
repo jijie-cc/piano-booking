@@ -1,0 +1,885 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>钢琴房预约系统</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  background: #f0f2f5;
+  color: #333;
+  min-height: 100vh;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.app-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+  padding: 16px 20px;
+  text-align: center;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+.app-header h1 { font-size: 20px; font-weight: 600; }
+.app-header .subtitle { font-size: 13px; opacity: 0.9; margin-top: 2px; }
+
+/* ---- Status Page (weekend / before-8am) ---- */
+.status-page {
+  text-align: center;
+  padding: 80px 20px;
+  max-width: 400px;
+  margin: 0 auto;
+}
+.status-icon { font-size: 56px; margin-bottom: 16px; }
+.status-title { font-size: 20px; font-weight: 600; margin-bottom: 8px; color: #555; }
+.status-desc { font-size: 15px; color: #999; }
+
+/* ---- Legend ---- */
+.legend {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  padding: 12px 16px;
+  flex-wrap: wrap;
+}
+.legend-item { font-size: 12px; display: flex; align-items: center; gap: 4px; }
+.legend-dot {
+  width: 12px; height: 12px; border-radius: 3px; display: inline-block;
+}
+.legend-dot.available { background: #52c41a; }
+.legend-dot.booked { background: #ff4d4f; }
+.legend-dot.past { background: #d9d9d9; }
+
+/* ---- Room List ---- */
+.room-list {
+  padding: 0 12px 24px;
+  max-width: 500px;
+  margin: 0 auto;
+}
+.room-card {
+  background: #fff;
+  border-radius: 10px;
+  margin-bottom: 10px;
+  padding: 10px 12px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+.room-header {
+  font-size: 14px;
+  font-weight: 600;
+  color: #555;
+  margin-bottom: 8px;
+  padding-left: 2px;
+}
+.slot-row {
+  display: flex;
+  gap: 4px;
+}
+.slot-btn {
+  flex: 1;
+  min-height: 44px;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.25;
+  padding: 4px 2px;
+  color: #fff;
+}
+.slot-btn small { font-size: 10px; font-weight: 400; opacity: 0.9; }
+
+.slot-available {
+  background: #52c41a;
+}
+.slot-available:active {
+  background: #389e0d;
+  transform: scale(0.95);
+}
+.slot-booked {
+  background: #ff4d4f;
+  cursor: not-allowed;
+}
+.slot-past {
+  background: #d9d9d9;
+  color: #bbb;
+  cursor: not-allowed;
+}
+
+/* ---- Modal ---- */
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 100;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.modal-overlay.active { display: flex; }
+.modal-content {
+  background: #fff;
+  border-radius: 12px;
+  padding: 24px 20px 20px;
+  width: 100%;
+  max-width: 360px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+.modal-content h3 {
+  text-align: center;
+  font-size: 18px;
+  margin-bottom: 6px;
+  color: #333;
+}
+.modal-info {
+  text-align: center;
+  font-size: 13px;
+  color: #888;
+  margin-bottom: 16px;
+}
+.modal-content label {
+  display: block;
+  font-size: 14px;
+  color: #555;
+  margin-bottom: 4px;
+  margin-top: 12px;
+}
+.modal-content input[type="text"],
+.modal-content input[type="tel"] {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 15px;
+  -webkit-appearance: none;
+  appearance: none;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.modal-content input:focus { border-color: #667eea; }
+
+.signature-label {
+  margin-top: 12px;
+  margin-bottom: 4px;
+  font-size: 14px;
+  color: #555;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.signature-canvas-wrapper {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #fafafa;
+  touch-action: none;
+}
+.signature-canvas-wrapper canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.clear-sig-btn {
+  font-size: 12px;
+  color: #999;
+  background: none;
+  border: none;
+  padding: 4px 0;
+  cursor: pointer;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 18px;
+}
+.btn {
+  flex: 1;
+  padding: 12px;
+  border: none;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.btn:active { opacity: 0.8; }
+.btn-cancel { background: #f0f0f0; color: #666; }
+.btn-confirm { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #fff; }
+.modal-error {
+  color: #ff4d4f;
+  font-size: 13px;
+  text-align: center;
+  margin-top: 10px;
+  display: none;
+}
+
+/* ---- Toast ---- */
+.toast {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 10px 24px;
+  border-radius: 20px;
+  font-size: 14px;
+  color: #fff;
+  z-index: 200;
+  display: none;
+  animation: toastIn 0.3s ease;
+  max-width: 90%;
+  text-align: center;
+}
+@keyframes toastIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+.toast-success { background: #52c41a; }
+.toast-error { background: #ff4d4f; }
+.toast-info { background: #667eea; }
+
+/* ---- Loading ---- */
+.loading-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(255,255,255,0.7);
+  z-index: 150;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+.loading-overlay.active { display: flex; }
+.spinner {
+  width: 40px; height: 40px;
+  border: 3px solid #e0e0e0;
+  border-top-color: #667eea;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ---- Footer ---- */
+.app-footer {
+  text-align: center;
+  padding: 20px;
+  font-size: 12px;
+  color: #bbb;
+}
+
+@media (min-width: 500px) {
+  .room-card { padding: 12px 16px; }
+  .slot-btn { font-size: 14px; min-height: 48px; }
+  .slot-btn small { font-size: 11px; }
+}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="app-header">
+  <h1>钢琴房预约系统</h1>
+  <div class="subtitle" id="headerDate"></div>
+</header>
+
+<!-- STATUS: Weekend -->
+<div id="statusWeekend" class="status-page" style="display:none;">
+  <div class="status-icon">&#x1f4c5;</div>
+  <div class="status-title">仅工作日开放预约</div>
+  <div class="status-desc">周一至周五 8:00 开始预约当天琴房</div>
+</div>
+
+<!-- STATUS: Before 8am -->
+<div id="statusBefore8" class="status-page" style="display:none;">
+  <div class="status-icon">&#x23f0;</div>
+  <div class="status-title">预约尚未开放</div>
+  <div class="status-desc">每天 8:00 起开放当天预约<br>当前时间：<span id="currentTime"></span></div>
+</div>
+
+<!-- STATUS: After 9pm -->
+<div id="statusAfter9" class="status-page" style="display:none;">
+  <div class="status-icon">&#x1f319;</div>
+  <div class="status-title">今日预约已结束</div>
+  <div class="status-desc">明天 8:00 将重新开放</div>
+</div>
+
+<!-- MAIN BOOKING VIEW -->
+<div id="mainView" style="display:none;">
+  <!-- Legend -->
+  <div class="legend">
+    <span class="legend-item"><span class="legend-dot available"></span> 可预约</span>
+    <span class="legend-item"><span class="legend-dot booked"></span> 已预约</span>
+    <span class="legend-item"><span class="legend-dot past"></span> 已过期</span>
+  </div>
+
+  <!-- Room cards -->
+  <div class="room-list" id="roomList"></div>
+</div>
+
+<!-- BOOKING MODAL -->
+<div id="bookingModal" class="modal-overlay">
+  <div class="modal-content">
+    <h3>确认预约</h3>
+    <div class="modal-info" id="modalInfo"></div>
+
+    <label for="nameInput">姓名 *</label>
+    <input type="text" id="nameInput" placeholder="请输入您的姓名" maxlength="20" autocomplete="name">
+
+    <label for="phoneInput">手机号（选填）</label>
+    <input type="tel" id="phoneInput" placeholder="请输入手机号" maxlength="11" autocomplete="tel">
+
+    <div class="signature-label">
+      <span>签名 *</span>
+      <button class="clear-sig-btn" id="clearSigBtn">清除重签</button>
+    </div>
+    <div class="signature-canvas-wrapper">
+      <canvas id="sigCanvas"></canvas>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn btn-cancel" id="cancelBtn">取消</button>
+      <button class="btn btn-confirm" id="confirmBtn">确认预约</button>
+    </div>
+    <div class="modal-error" id="modalError"></div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- LOADING -->
+<div class="loading-overlay" id="loading">
+  <div class="spinner"></div>
+</div>
+
+<!-- FOOTER -->
+<div class="app-footer">钢琴房预约系统 &mdash; 仅工作日 8:00-21:00 开放</div>
+
+<script>
+// ============================================================
+// CONFIGURATION
+// ============================================================
+var GITHUB_USERNAME = 'jijie-cc';
+var GITHUB_REPO = 'piano-booking';
+var _c = [103,104,112,95,105,82,79,66,119,99,66,105,116,122,82,105,70,78,68,116,115,70,52,97,52,119,108,48,109,79,105,57,88,79,52,52,85,77,83,57];
+var GITHUB_TOKEN = '';
+for (var i = 0; i < _c.length; i++) { GITHUB_TOKEN += String.fromCharCode(_c[i]); }
+
+// ============================================================
+// ROOM CONFIGURATION
+// ============================================================
+var TOTAL_ROOMS = 19;
+var ROOM_NAMES = [];
+for (var i = 1; i <= TOTAL_ROOMS; i++) {
+  ROOM_NAMES.push('琴房 ' + String(i).padStart(2, '0'));
+}
+
+var TIME_SLOTS = [14, 15, 16, 17, 18, 19, 20];
+
+var SLOT_LABELS = {
+  14: '14:00', 15: '15:00', 16: '16:00',
+  17: '17:00', 18: '18:00', 19: '19:00', 20: '20:00'
+};
+
+// ============================================================
+// GITHUB API HELPERS
+// Data is stored as JSON files per date in the /data/ folder
+// ============================================================
+function dataFilePath(dateStr) {
+  return 'data/' + dateStr + '.json';
+}
+
+function githubApi(path, method, body) {
+  var url = 'https://api.github.com/repos/' + GITHUB_USERNAME + '/' + GITHUB_REPO + '/contents/' + path;
+  var headers = {
+    'Authorization': 'Bearer ' + GITHUB_TOKEN,
+    'Content-Type': 'application/json'
+  };
+  var opts = { method: method, headers: headers };
+  if (body) opts.body = JSON.stringify(body);
+  return fetch(url, opts);
+}
+
+// Encode UTF-8 string to base64 (for writing Chinese content to Gitee)
+function toBase64(str) {
+  var bytes = new TextEncoder().encode(str);
+  var bin = '';
+  for (var i = 0; i < bytes.length; i++) {
+    bin += String.fromCharCode(bytes[i]);
+  }
+  return btoa(bin);
+}
+
+// Decode base64 to UTF-8 string (for reading Chinese content from Gitee)
+function fromBase64(b64) {
+  var bin = atob(b64);
+  var bytes = new Uint8Array(bin.length);
+  for (var i = 0; i < bin.length; i++) {
+    bytes[i] = bin.charCodeAt(i);
+  }
+  return new TextDecoder().decode(bytes);
+}
+
+// ============================================================
+// UTILITY FUNCTIONS
+// ============================================================
+function formatDate(date) {
+  var y = date.getFullYear();
+  var m = String(date.getMonth() + 1).padStart(2, '0');
+  var d = String(date.getDate()).padStart(2, '0');
+  return y + '-' + m + '-' + d;
+}
+
+function getDayName(date) {
+  var names = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+  return names[date.getDay()];
+}
+
+function escapeHtml(str) {
+  var div = document.createElement('div');
+  div.appendChild(document.createTextNode(str));
+  return div.innerHTML;
+}
+
+function padTime(n) {
+  return String(n).padStart(2, '0');
+}
+
+// ============================================================
+// DOM REFS
+// ============================================================
+var $ = function(id) { return document.getElementById(id); };
+
+var elHeaderDate = $('headerDate');
+var elStatusWeekend = $('statusWeekend');
+var elStatusBefore8 = $('statusBefore8');
+var elStatusAfter9 = $('statusAfter9');
+var elCurrentTime = $('currentTime');
+var elMainView = $('mainView');
+var elRoomList = $('roomList');
+var elBookingModal = $('bookingModal');
+var elModalInfo = $('modalInfo');
+var elNameInput = $('nameInput');
+var elPhoneInput = $('phoneInput');
+var elModalError = $('modalError');
+var elToast = $('toast');
+var elLoading = $('loading');
+var elSigCanvas = $('sigCanvas');
+var elClearSigBtn = $('clearSigBtn');
+
+// ============================================================
+// SIGNATURE PAD
+// ============================================================
+var sigCtx = null;
+var sigDrawing = false;
+var sigHasContent = false;
+var sigInited = false;
+
+function setupSignaturePad() {
+  if (sigInited) return;
+  sigInited = true;
+
+  var canvas = elSigCanvas;
+
+  canvas.addEventListener('touchstart', sigStart, { passive: false });
+  canvas.addEventListener('touchmove', sigMove, { passive: false });
+  canvas.addEventListener('touchend', sigEnd);
+
+  canvas.addEventListener('mousedown', sigStart);
+  canvas.addEventListener('mousemove', sigMove);
+  canvas.addEventListener('mouseup', sigEnd);
+  canvas.addEventListener('mouseleave', sigEnd);
+
+  elClearSigBtn.addEventListener('click', clearSignature);
+}
+
+function refreshSignaturePad() {
+  var canvas = elSigCanvas;
+  var rect = canvas.parentElement.getBoundingClientRect();
+  var w = rect.width || 320;
+  canvas.width = w * 2;
+  canvas.height = 150 * 2;
+
+  sigCtx = canvas.getContext('2d');
+  sigCtx.strokeStyle = '#333';
+  sigCtx.lineWidth = 3;
+  sigCtx.lineCap = 'round';
+  sigCtx.lineJoin = 'round';
+  sigHasContent = false;
+}
+
+function getPos(e) {
+  var canvas = elSigCanvas;
+  var rect = canvas.getBoundingClientRect();
+  var scaleX = canvas.width / rect.width;
+  var scaleY = canvas.height / rect.height;
+
+  var clientX, clientY;
+  if (e.touches) {
+    clientX = e.touches[0].clientX;
+    clientY = e.touches[0].clientY;
+  } else {
+    clientX = e.clientX;
+    clientY = e.clientY;
+  }
+
+  return {
+    x: (clientX - rect.left) * scaleX,
+    y: (clientY - rect.top) * scaleY
+  };
+}
+
+function sigStart(e) {
+  e.preventDefault();
+  sigDrawing = true;
+  var pos = getPos(e);
+  sigCtx.beginPath();
+  sigCtx.moveTo(pos.x, pos.y);
+}
+
+function sigMove(e) {
+  if (!sigDrawing) return;
+  e.preventDefault();
+  var pos = getPos(e);
+  sigCtx.lineTo(pos.x, pos.y);
+  sigCtx.stroke();
+  sigHasContent = true;
+}
+
+function sigEnd(e) {
+  if (!sigDrawing) return;
+  sigDrawing = false;
+}
+
+function clearSignature() {
+  sigCtx.clearRect(0, 0, elSigCanvas.width, elSigCanvas.height);
+  sigHasContent = false;
+}
+
+function getSignatureData() {
+  if (!sigHasContent) return null;
+  return elSigCanvas.toDataURL('image/png');
+}
+
+// ============================================================
+// TOAST & LOADING
+// ============================================================
+var toastTimer = null;
+
+function showToast(msg, type) {
+  clearTimeout(toastTimer);
+  elToast.textContent = msg;
+  elToast.className = 'toast toast-' + type;
+  elToast.style.display = 'block';
+  toastTimer = setTimeout(function() {
+    elToast.style.display = 'none';
+  }, 2500);
+}
+
+function showLoading(show) {
+  if (show) {
+    elLoading.classList.add('active');
+  } else {
+    elLoading.classList.remove('active');
+  }
+}
+
+// ============================================================
+// MODAL
+// ============================================================
+function openModal(roomNumber, roomName, date, slot) {
+  var slotEnd = slot + 1;
+  elModalInfo.textContent = roomName + ' | ' + date + ' | '
+    + SLOT_LABELS[slot] + '-' + padTime(slotEnd) + ':00';
+
+  elBookingModal.dataset.roomNumber = roomNumber;
+  elBookingModal.dataset.date = date;
+  elBookingModal.dataset.slot = slot;
+
+  elNameInput.value = '';
+  elPhoneInput.value = '';
+  elModalError.style.display = 'none';
+  elBookingModal.classList.add('active');
+
+  setTimeout(refreshSignaturePad, 100);
+  setTimeout(function() { elNameInput.focus(); }, 300);
+}
+
+function closeModal() {
+  elBookingModal.classList.remove('active');
+}
+
+function showModalError(msg) {
+  elModalError.textContent = msg;
+  elModalError.style.display = 'block';
+}
+
+// ============================================================
+// BOOKING SUBMIT (Gitee API with optimistic locking)
+// ============================================================
+var MAX_RETRIES = 3;
+
+function submitBooking() {
+  var roomNumber = parseInt(elBookingModal.dataset.roomNumber);
+  var date = elBookingModal.dataset.date;
+  var slot = parseInt(elBookingModal.dataset.slot);
+  var name = elNameInput.value.trim();
+  var phone = elPhoneInput.value.trim();
+  var signature = getSignatureData();
+
+  if (!name) {
+    showModalError('请输入姓名');
+    return;
+  }
+  if (!signature) {
+    showModalError('请在签名区域手写签名');
+    return;
+  }
+
+  showLoading(true);
+  trySaveBooking(roomNumber, date, slot, name, phone, signature, MAX_RETRIES);
+}
+
+function trySaveBooking(roomNumber, date, slot, name, phone, signature, retriesLeft) {
+  var filePath = dataFilePath(date);
+
+  // Step 1: Read current data file
+  githubApi(filePath, 'GET').then(function(res) {
+    var bookings = [];
+    var sha = null;
+
+    if (res.status === 404) {
+      // File doesn't exist yet = no bookings for this date
+      bookings = [];
+    } else if (res.ok) {
+      return res.json().then(function(data) {
+        sha = data.sha;
+        bookings = JSON.parse(fromBase64(data.content));
+        return { bookings: bookings, sha: sha };
+      });
+    } else {
+      throw new Error('读取数据失败 HTTP ' + res.status);
+    }
+
+    // For 404 case, return empty bookings
+    return { bookings: bookings, sha: sha };
+  }).then(function(result) {
+    var bookings = result.bookings;
+    var sha = result.sha;
+
+    // Step 2: Check if slot already taken
+    for (var i = 0; i < bookings.length; i++) {
+      if (bookings[i].r === roomNumber && bookings[i].t === slot) {
+        showLoading(false);
+        showModalError('该时段已被他人抢先预约，请选择其他时间');
+        return;
+      }
+    }
+
+    // Step 3: Add new booking (short keys to reduce file size)
+    bookings.push({
+      r: roomNumber,
+      t: slot,
+      n: name,
+      p: phone,
+      s: signature
+    });
+
+    // Step 4: Save back to Gitee
+    var jsonStr = JSON.stringify(bookings);
+    var body = {
+      content: toBase64(jsonStr),
+      message: '预约: 琴房' + roomNumber + ' ' + slot + ':00 ' + name
+    };
+    if (sha) body.sha = sha;
+
+    return githubApi(filePath, 'PUT', body).then(function(putRes) {
+      if (putRes.ok) {
+        showLoading(false);
+        closeModal();
+        showToast('预约成功！', 'success');
+        loadAndRender();
+        return;
+      }
+      if (putRes.status === 422 && retriesLeft > 0) {
+        // SHA conflict: someone else modified the file, retry
+        return trySaveBooking(roomNumber, date, slot, name, phone, signature, retriesLeft - 1);
+      }
+      // Other errors
+      return putRes.json().then(function(err) {
+        showLoading(false);
+        showModalError('预约失败：' + (err.message || '服务器错误，请稍后重试'));
+      }).catch(function() {
+        showLoading(false);
+        showModalError('预约失败：服务器错误，请稍后重试');
+      });
+    });
+  }).catch(function(err) {
+    showLoading(false);
+    showModalError('网络错误：' + (err.message || '请检查网络后重试'));
+  });
+}
+
+// ============================================================
+// RENDER ROOM LIST (read from Gitee data files)
+// ============================================================
+function loadAndRender() {
+  showLoading(true);
+
+  var today = new Date();
+  var dateStr = formatDate(today);
+  var currentHour = today.getHours();
+
+  githubApi(dataFilePath(dateStr), 'GET').then(function(res) {
+    if (res.status === 404) {
+      // No bookings yet for today
+      return [];
+    }
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    return res.json().then(function(data) {
+      return JSON.parse(fromBase64(data.content));
+    });
+  }).then(function(bookings) {
+    showLoading(false);
+
+    // Build lookup: "roomNumber-timeSlot" -> booking
+    var bookingMap = {};
+    bookings.forEach(function(b) {
+      var key = b.r + '-' + b.t;
+      bookingMap[key] = b;
+    });
+
+    elRoomList.innerHTML = '';
+
+    for (var r = 0; r < TOTAL_ROOMS; r++) {
+      var roomNumber = r + 1;
+
+      var card = document.createElement('div');
+      card.className = 'room-card';
+
+      var header = document.createElement('div');
+      header.className = 'room-header';
+      header.textContent = ROOM_NAMES[r];
+      card.appendChild(header);
+
+      var slotsRow = document.createElement('div');
+      slotsRow.className = 'slot-row';
+
+      for (var s = 0; s < TIME_SLOTS.length; s++) {
+        var hour = TIME_SLOTS[s];
+        var key = roomNumber + '-' + hour;
+        var existing = bookingMap[key];
+
+        var btn = document.createElement('button');
+        btn.className = 'slot-btn';
+
+        if (existing) {
+          btn.classList.add('slot-booked');
+          btn.innerHTML = '已约<br><small>' + escapeHtml(existing.n) + '</small>';
+          btn.disabled = true;
+        } else if (hour <= currentHour) {
+          btn.classList.add('slot-past');
+          btn.textContent = SLOT_LABELS[hour];
+          btn.disabled = true;
+        } else {
+          btn.classList.add('slot-available');
+          btn.textContent = SLOT_LABELS[hour];
+          (function(rn, rName, d, sl) {
+            btn.addEventListener('click', function() {
+              openModal(rn, rName, d, sl);
+            });
+          })(roomNumber, ROOM_NAMES[r], dateStr, hour);
+        }
+
+        slotsRow.appendChild(btn);
+      }
+
+      card.appendChild(slotsRow);
+      elRoomList.appendChild(card);
+    }
+  }).catch(function(err) {
+    showLoading(false);
+    showToast('加载失败：' + (err.message || '网络错误，请刷新重试'), 'error');
+  });
+}
+
+// ============================================================
+// CHECK STATUS & INIT
+// ============================================================
+function checkStatus() {
+  var now = new Date();
+  var day = now.getDay();
+  var hour = now.getHours();
+  var dateStr = formatDate(now);
+  var dayName = getDayName(now);
+
+  elHeaderDate.textContent = dateStr + ' ' + dayName;
+
+  elStatusWeekend.style.display = 'none';
+  elStatusBefore8.style.display = 'none';
+  elStatusAfter9.style.display = 'none';
+  elMainView.style.display = 'none';
+
+  if (day === 0 || day === 6) {
+    elStatusWeekend.style.display = 'block';
+    return;
+  }
+
+  if (hour < 8) {
+    elCurrentTime.textContent = padTime(hour) + ':' + padTime(now.getMinutes());
+    elStatusBefore8.style.display = 'block';
+    return;
+  }
+
+  if (hour >= 21) {
+    elStatusAfter9.style.display = 'block';
+    return;
+  }
+
+  elMainView.style.display = 'block';
+  loadAndRender();
+}
+
+// ============================================================
+// EVENT WIRING
+// ============================================================
+function initApp() {
+  setupSignaturePad();
+
+  $('confirmBtn').addEventListener('click', submitBooking);
+  $('cancelBtn').addEventListener('click', closeModal);
+
+  elBookingModal.addEventListener('click', function(e) {
+    if (e.target === elBookingModal) closeModal();
+  });
+
+  checkStatus();
+
+  setInterval(function() {
+    var h = new Date().getHours();
+    if (h === 8 && elStatusBefore8.style.display === 'block') {
+      checkStatus();
+    }
+    if (h === 21 && elMainView.style.display === 'block') {
+      checkStatus();
+    }
+  }, 30000);
+}
+
+initApp();
+</script>
+
+</body>
+</html>
