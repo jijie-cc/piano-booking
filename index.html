@@ -56,6 +56,13 @@ body {
 .legend-dot.available { background: #52c41a; }
 .legend-dot.booked { background: #ff4d4f; }
 .legend-dot.past { background: #d9d9d9; }
+.legend-dot.closed { background: #faad14; }
+
+.slot-closed {
+  background: #faad14;
+  color: #fff;
+  cursor: not-allowed;
+}
 
 /* ---- Room List ---- */
 .room-list {
@@ -340,6 +347,13 @@ body {
   <div class="status-desc">每天 8:00 起开放当天预约<br>当前时间：<span id="currentTime"></span></div>
 </div>
 
+<!-- STATUS: After 2pm (view only) -->
+<div id="statusAfter2" class="status-page" style="display:none;">
+  <div class="status-icon">&#x1f440;</div>
+  <div class="status-title">预约已截止</div>
+  <div class="status-desc">每天 8:00-14:00 可预约<br>当前仅可查看预约情况</div>
+</div>
+
 <!-- STATUS: After 9pm -->
 <div id="statusAfter9" class="status-page" style="display:none;">
   <div class="status-icon">&#x1f319;</div>
@@ -354,6 +368,7 @@ body {
     <span class="legend-item"><span class="legend-dot available"></span> 可预约</span>
     <span class="legend-item"><span class="legend-dot booked"></span> 已预约</span>
     <span class="legend-item"><span class="legend-dot past"></span> 已过期</span>
+    <span class="legend-item" id="legendClosed"><span class="legend-dot closed"></span> 已截止</span>
   </div>
 
   <!-- Room cards -->
@@ -511,7 +526,9 @@ var $ = function(id) { return document.getElementById(id); };
 var elHeaderDate = $('headerDate');
 var elStatusWeekend = $('statusWeekend');
 var elStatusBefore8 = $('statusBefore8');
+var elStatusAfter2 = $('statusAfter2');
 var elStatusAfter9 = $('statusAfter9');
+var elLegendClosed = $('legendClosed');
 var elCurrentTime = $('currentTime');
 var elMainView = $('mainView');
 var elRoomList = $('roomList');
@@ -530,6 +547,7 @@ var elToggleViewBtn = $('toggleViewBtn');
 var elExportAllBtn = $('exportAllBtn');
 var currentBookings = [];
 var isAdminView = false;
+var bookingOpen = true;
 
 // ============================================================
 // SIGNATURE PAD
@@ -762,7 +780,7 @@ function trySaveBooking(roomNumber, date, slot, name, phone, signature, retriesL
         showLoading(false);
         closeModal();
         showToast('预约成功！', 'success');
-        loadAndRender();
+        loadAndRender(bookingOpen);
         return;
       }
       if (putRes.status === 422 && retriesLeft > 0) {
@@ -787,8 +805,10 @@ function trySaveBooking(roomNumber, date, slot, name, phone, signature, retriesL
 // ============================================================
 // RENDER ROOM LIST (read from Gitee data files)
 // ============================================================
-function loadAndRender() {
+function loadAndRender(bookingOpen) {
   showLoading(true);
+
+  if (typeof bookingOpen === 'undefined') bookingOpen = true;
 
   var today = new Date();
   var dateStr = formatDate(today);
@@ -847,6 +867,10 @@ function loadAndRender() {
         } else if (hour <= currentHour) {
           btn.classList.add('slot-past');
           btn.textContent = SLOT_LABELS[hour];
+          btn.disabled = true;
+        } else if (!bookingOpen) {
+          btn.classList.add('slot-closed');
+          btn.textContent = '已截止';
           btn.disabled = true;
         } else {
           btn.classList.add('slot-available');
@@ -1022,6 +1046,7 @@ function checkStatus() {
 
   elStatusWeekend.style.display = 'none';
   elStatusBefore8.style.display = 'none';
+  elStatusAfter2.style.display = 'none';
   elStatusAfter9.style.display = 'none';
   elMainView.style.display = 'none';
 
@@ -1041,8 +1066,14 @@ function checkStatus() {
     return;
   }
 
+  // Booking allowed 8:00-14:00, view-only 14:00-21:00
+  bookingOpen = (hour < 14);
+
+  // Show/hide the "已截止" legend item
+  elLegendClosed.style.display = bookingOpen ? 'none' : '';
+
   elMainView.style.display = 'block';
-  loadAndRender();
+  loadAndRender(bookingOpen);
 }
 
 // ============================================================
@@ -1065,6 +1096,9 @@ function initApp() {
   setInterval(function() {
     var h = new Date().getHours();
     if (h === 8 && elStatusBefore8.style.display === 'block') {
+      checkStatus();
+    }
+    if (h === 14 && bookingOpen && elMainView.style.display === 'block') {
       checkStatus();
     }
     if (h === 21 && elMainView.style.display === 'block') {
