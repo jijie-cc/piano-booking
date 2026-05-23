@@ -58,15 +58,6 @@ body {
 .slot-closed { background: #faad14; color: #fff; cursor: not-allowed; }
 
 .room-list { padding: 0 12px 24px; max-width: 500px; margin: 0 auto; }
-.room-group-header {
-  font-size: 12px;
-  font-weight: 600;
-  color: #999;
-  padding: 8px 4px 4px;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-}
-.room-group-header:first-child { padding-top: 0; }
 
 .room-card {
   background: #fff;
@@ -310,7 +301,7 @@ body {
 <div id="statusAfter2" class="status-page" style="display:none;">
   <div class="status-icon">&#x1f440;</div>
   <div class="status-title">预约已截止</div>
-  <div class="status-desc">每天 8:00-14:00 可预约<br>当前仅可查看预约情况</div>
+  <div class="status-desc">周一至周五 8:00-14:00 可预约<br>当前仅可查看预约情况</div>
 </div>
 
 <div id="statusAfter9" class="status-page" style="display:none;">
@@ -736,6 +727,15 @@ function trySaveBooking(roomNumber, date, slot, name, className, phone, signatur
     var bookings = result.bookings;
     var sha = result.sha;
 
+    // Check if same person already booked (same name)
+    for (var i = 0; i < bookings.length; i++) {
+      if (bookings[i].n === name) {
+        showLoading(false);
+        showModalError('您已预约过琴房' + bookings[i].r + ' ' + bookings[i].t + ':00，每人限约一个时段');
+        return;
+      }
+    }
+
     // Check if slot already taken
     for (var i = 0; i < bookings.length; i++) {
       if (bookings[i].r === roomNumber && bookings[i].t === slot) {
@@ -800,8 +800,7 @@ function loadAndRender(open) {
   var dateStr = formatDate(today);
   var currentHour = today.getHours();
 
-  var url = 'https://api.github.com/repos/' + GITHUB_USERNAME + '/' + GITHUB_REPO + '/contents/data/' + dateStr + '.json';
-  fetch(url, { headers: { 'Authorization': 'Bearer ' + GITHUB_TOKEN } }).then(function(res) {
+  githubApi(dataFilePath(dateStr), 'GET').then(function(res) {
     if (res.status === 404) return [];
     if (!res.ok) throw new Error('HTTP ' + res.status);
     return res.json().then(function(data) {
@@ -874,9 +873,9 @@ function renderAdminTable() {
     return a.t - b.t;
   });
 
-  var html = '<table class="admin-table"><thead><tr><th>琴房</th><th>时段</th><th>姓名</th><th>班级</th><th>手机号</th><th>签名</th></tr></thead><tbody>';
+  var html = '<table class="admin-table"><thead><tr><th>琴房</th><th>时段</th><th>姓名</th><th>班级</th><th>手机号</th><th>签名</th><th>操作</th></tr></thead><tbody>';
 
-  sorted.forEach(function(b) {
+  sorted.forEach(function(b, idx) {
     var timeLabel = (b.t < 10 ? '0' : '') + b.t + ':00-' + (b.t + 1) + ':00';
     var sigImg = b.s ? '<img class="sig-thumb" src="' + escapeHtml(b.s) + '" alt="签名" loading="lazy">' : '-';
     html += '<tr>' +
@@ -886,6 +885,7 @@ function renderAdminTable() {
       '<td>' + escapeHtml(b.c || '-') + '</td>' +
       '<td>' + escapeHtml(b.p || '-') + '</td>' +
       '<td>' + sigImg + '</td>' +
+      '<td><button onclick="deleteBooking(' + idx + ')" style="padding:4px 10px;border:none;border-radius:4px;background:#ff4d4f;color:#fff;font-size:12px;cursor:pointer;">删除</button></td>' +
       '</tr>';
   });
 
@@ -893,8 +893,73 @@ function renderAdminTable() {
   elAdminTable.innerHTML = html;
 }
 
+function deleteBooking(idx) {
+  var b = currentBookings[idx];
+  if (!b) return;
+  if (!confirm('确认删除 琴房' + b.r + ' ' + (b.t < 10 ? '0' : '') + b.t + ':00 ' + b.n + ' 的预约？')) return;
+
+  showLoading(true);
+  var today = new Date();
+  var dateStr = formatDate(today);
+  var filePath = dataFilePath(dateStr);
+  var maxRetries = 3;
+
+  function tryDelete(retriesLeft) {
+    githubApi(filePath, 'GET').then(function(res) {
+      if (!res.ok) throw new Error('读取数据失败 HTTP ' + res.status);
+      return res.json().then(function(data) {
+        return { sha: data.sha, bookings: JSON.parse(fromBase64(data.content)) };
+      });
+    }).then(function(result) {
+      var bookings = result.bookings;
+      var sha = result.sha;
+
+      // Remove the matching booking
+      var found = false;
+      bookings = bookings.filter(function(item) {
+        if (!found && item.r === b.r && item.t === b.t && item.n === b.n) {
+          found = true;
+          return false;
+        }
+        return true;
+      });
+
+      if (!found) {
+        showLoading(false);
+        showToast('未找到该预约记录', 'error');
+        return;
+      }
+
+      var body = {
+        content: toBase64(JSON.stringify(bookings)),
+        message: '删除: 琴房' + b.r + ' ' + b.t + ':00 ' + b.n,
+        sha: sha
+      };
+
+      return githubApi(filePath, 'PUT', body).then(function(putRes) {
+        if (putRes.ok) {
+          showLoading(false);
+          showToast('已删除', 'success');
+          loadAndRender(bookingOpen);
+          return;
+        }
+        if (putRes.status === 422 && retriesLeft > 0) {
+          return tryDelete(retriesLeft - 1);
+        }
+        showLoading(false);
+        showToast('删除失败', 'error');
+      });
+    }).catch(function(err) {
+      showLoading(false);
+      showToast('删除失败：' + (err.message || '网络错误'), 'error');
+    });
+  }
+
+  tryDelete(maxRetries);
+}
+
 // ============================================================
-// PASSWORD — verified server-side via Worker
+// PASSWORD — local verification
 // ============================================================
 var elPwdModal = $('pwdModal');
 var elPwdInput = $('pwdInput');
