@@ -402,9 +402,6 @@ window.onerror = function(msg, src, line, col, err) {
     + 'JS ERROR line ' + line + ': ' + msg + '</div>');
 };
 
-try {
-document.body.insertAdjacentHTML('beforeend', '<div style="position:fixed;bottom:0;left:0;right:0;background:green;color:#fff;padding:10px;z-index:99999;font-size:12px;">SCRIPT STARTED</div>');
-
 // ============================================================
 // GITHUB API CONFIGURATION
 // ============================================================
@@ -892,7 +889,6 @@ function loadAndRender(open) {
     showToast('加载失败：' + (err.message || '网络错误'), 'error');
   });
 }
-}
 
 // ============================================================
 // ADMIN VIEW
@@ -1074,7 +1070,6 @@ function downloadFile(content, filename, mimeType) {
 // CHECK STATUS & INIT — uses smart scheduling instead of polling
 // ============================================================
 function checkStatus() {
-  try {
   var now = new Date();
   var day = now.getDay();
   var hour = now.getHours();
@@ -1105,12 +1100,8 @@ function checkStatus() {
   bookingOpen = (hour < 14);
   elLegendClosed.style.display = bookingOpen ? 'none' : '';
   elMainView.style.display = 'block';
-  elRoomList.innerHTML = '<div style="text-align:center;padding:20px;color:#52c41a;">checkStatus OK, calling loadAndRender...</div>';
   loadAndRender(bookingOpen);
   scheduleNextCheck();
-  } catch(e) {
-    document.body.insertAdjacentHTML('beforeend', '<div style="position:fixed;top:0;left:0;right:0;background:red;color:#fff;padding:20px;z-index:9999;font-size:14px;">CHECKSTATUS ERROR: ' + e.message + '</div>');
-  }
 }
 
 // Schedule a one-shot timer to the next state transition
@@ -1184,12 +1175,6 @@ function initApp() {
 
 
 initApp();
-document.body.insertAdjacentHTML('beforeend', '<div style="position:fixed;bottom:0;left:0;right:0;background:blue;color:#fff;padding:10px;z-index:99999;font-size:12px;">SCRIPT FINISHED</div>');
-} catch(e) {
-  document.body.insertAdjacentHTML('beforeend',
-    '<div style="position:fixed;top:50px;left:0;right:0;background:red;color:#fff;padding:20px;z-index:99999;font-size:14px;">'
-    + 'TOP LEVEL ERROR: ' + e.message + '</div>');
-}
 </script>
 
 </body>
