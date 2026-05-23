@@ -394,6 +394,7 @@ body {
 
 <div class="app-footer">钢琴房预约系统 &mdash; 每天 8:00-18:00 可预约，18:00 后仅可查看</div>
 
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script>
 // ============================================================
 // GITHUB API CONFIGURATION
@@ -989,21 +990,21 @@ function exportBookings(format) {
 
       downloadFile(csv, '钢琴房预约记录_' + formatDate(now) + '.csv', 'text/csv;charset=utf-8');
     } else {
-      var html = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">';
-      html += '<head><meta charset="UTF-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>预约记录</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->';
-      html += '<style>table{border-collapse:collapse;}th,td{border:1px solid #000;padding:6px 8px;text-align:center;font-size:12px;vertical-align:middle;}' +
-              'th{background:#667eea;color:#fff;}.sig-cell{width:100px;height:50px;}.sig-cell img{width:90px;height:45px;object-fit:contain;}</style></head><body>';
-      html += '<h3>钢琴房预约记录汇总 — ' + formatDate(now) + '（共' + allBookings.length + '条）</h3>';
-      html += '<table><tr><th>日期</th><th>琴房</th><th>时段</th><th>姓名</th><th>班级</th><th>手机号</th><th>签名</th></tr>';
-
+      // Use SheetJS to generate proper .xlsx file
+      var rows = [['日期', '琴房', '时段', '姓名', '班级', '手机号', '签名']];
       allBookings.forEach(function(b) {
-        var sigHtml = b.s ? '<td class="sig-cell"><img src="' + escapeHtml(b.s) + '" alt="签名"></td>' : '<td>-</td>';
-        html += '<tr><td>' + escapeHtml(b.date) + '</td><td>琴房' + b.r + '</td><td>' + (timeSlots[b.t] || b.t+':00') + '</td>' +
-                '<td>' + escapeHtml(b.n) + '</td><td>' + escapeHtml(b.c || '-') + '</td><td>' + escapeHtml(b.p || '-') + '</td>' + sigHtml + '</tr>';
+        var roomLabel = '琴房' + b.r;
+        rows.push([b.date, roomLabel, timeSlots[b.t] || (b.t + ':00'), b.n, b.c || '', b.p || '', b.s ? '已签' : '无']);
       });
 
-      html += '</table></body></html>';
-      downloadFile(html, '钢琴房预约记录_' + formatDate(now) + '.xls', 'application/vnd.ms-excel;charset=utf-8');
+      var ws = XLSX.utils.aoa_to_sheet(rows);
+      ws['!cols'] = [
+        {wch: 12}, {wch: 8}, {wch: 14}, {wch: 10}, {wch: 14}, {wch: 14}, {wch: 8}
+      ];
+
+      var wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, '预约记录');
+      XLSX.writeFile(wb, '钢琴房预约记录_' + formatDate(now) + '.xlsx');
     }
     })(allBookings);
   }).catch(function(err) {
