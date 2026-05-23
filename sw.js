@@ -2,7 +2,7 @@
  * Service Worker for Piano Room Booking
  * Cache-first for static assets, network-only for API calls.
  */
-var CACHE_NAME = 'piano-booking-v1';
+var CACHE_NAME = 'piano-booking-v2';
 var STATIC_ASSETS = ['.', 'index.html', 'manifest.json'];
 
 self.addEventListener('install', function(event) {
