@@ -880,7 +880,9 @@ function loadAndRender(open) {
     if (isAdminView) renderAdminTable();
   }).catch(function(err) {
     showLoading(false);
-    showToast('加载失败：' + (err.message || '网络错误，请刷新重试'), 'error');
+    var msg = (err.message || '网络错误') + ' [' + (err.name || 'Error') + ']';
+    showToast('加载失败：' + msg, 'error');
+    elRoomList.innerHTML = '<div class="no-bookings" style="color:#ff4d4f;">错误详情：<br>' + msg + '<br><br>请截图发给我，或尝试 Ctrl+F5 强制刷新</div>';
   });
 }
 
