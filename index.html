@@ -431,9 +431,9 @@ function dataFilePath(dateStr) {
 function githubApi(path, method, body) {
   var url = 'https://api.github.com/repos/' + GITHUB_USERNAME + '/' + GITHUB_REPO + '/contents/' + path;
   var headers = {
-    'Authorization': 'Bearer ' + GITHUB_TOKEN,
-    'Content-Type': 'application/json'
+    'Authorization': 'Bearer ' + GITHUB_TOKEN
   };
+  if (body) headers['Content-Type'] = 'application/json';
   var opts = { method: method, headers: headers };
   if (body) opts.body = JSON.stringify(body);
   return fetch(url, opts);
