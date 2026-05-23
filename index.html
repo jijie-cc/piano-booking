@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="theme-color" content="#667eea">
 <meta name="description" content="钢琴房预约系统">
-<link rel="manifest" href="manifest.json">
 <title>钢琴房预约系统</title>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -794,40 +793,22 @@ function trySaveBooking(roomNumber, date, slot, name, className, phone, signatur
 // RENDER ROOM LIST (via GitHub API)
 // ============================================================
 function loadAndRender(open) {
-  // Step-by-step debug log on page
-  var _steps = [];
-  function _log(s) { _steps.push(s); console.log('LAR:', s); }
-  function _showSteps() {
-    var html = '<div id=\"debugBox\" style=\"padding:20px;background:#fff;margin:12px;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,0.1);font-size:13px;line-height:1.6;word-break:break-all;\"><b>DEBUG STEPS:</b><br>' + _steps.map(function(s,i){ return (i+1)+'. '+s; }).join('<br>') + '</div>';
-    try { elRoomList.innerHTML = html; } catch(e) {}
-    try { document.getElementById('mainView').insertAdjacentHTML('beforebegin', html); } catch(e) {}
-  }
-
-  try {
-  _log('start, open=' + open);
   showLoading(true);
-  _log('loading shown');
-
   if (typeof open === 'undefined') open = true;
 
   var today = new Date();
   var dateStr = formatDate(today);
   var currentHour = today.getHours();
-  _log('date=' + dateStr + ' hour=' + currentHour);
 
-  var filePath = dataFilePath(dateStr);
-  _log('filePath=' + filePath);
-
-  githubApi(filePath, 'GET').then(function(res) {
-    _log('response status=' + res.status + ' ok=' + res.ok);
-    if (res.status === 404) { _log('404 -> return []'); return []; }
+  // Use direct fetch (same pattern as working simple.html)
+  var url = 'https://api.github.com/repos/' + GITHUB_USERNAME + '/' + GITHUB_REPO + '/contents/data/' + dateStr + '.json';
+  fetch(url, { headers: { 'Authorization': 'Bearer ' + GITHUB_TOKEN } }).then(function(res) {
+    if (res.status === 404) return [];
     if (!res.ok) throw new Error('HTTP ' + res.status);
     return res.json().then(function(data) {
-      _log('parsing json...');
       return JSON.parse(fromBase64(data.content));
     });
   }).then(function(bookings) {
-    _log('got bookings count=' + bookings.length);
     showLoading(false);
 
     currentBookings = bookings;
@@ -898,17 +879,9 @@ function loadAndRender(open) {
 
     if (isAdminView) renderAdminTable();
   }).catch(function(err) {
-    _log('CATCH: ' + (err.message || String(err)));
     showLoading(false);
-    showToast('加载失败', 'error');
-    _showSteps();
+    showToast('加载失败：' + (err.message || '网络错误'), 'error');
   });
-  } catch(e) {
-    _log('SYNC-ERROR: ' + e.message);
-    showLoading(false);
-    showToast('同步错误', 'error');
-    _showSteps();
-  }
 }
 }
 
@@ -1195,14 +1168,6 @@ function initApp() {
   checkStatus();
 }
 
-// Register Service Worker for PWA
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', function() {
-    navigator.serviceWorker.register('sw.js').catch(function() {
-      // Silently fail — app still works via regular HTTP cache
-    });
-  });
-}
 
 initApp();
 </script>
