@@ -818,7 +818,7 @@ function loadAndRender(open) {
       bookingMap[b.r + '-' + b.t] = b;
     });
 
-    elRoomList.innerHTML = '';
+    elRoomList.innerHTML = '<div style="text-align:center;padding:20px;color:#999;">渲染中... bookings=' + bookings.length + ' open=' + open + ' currentHour=' + currentHour + '</div>';
 
     for (var r = 0; r < TOTAL_ROOMS; r++) {
       var roomNumber = r + 1;
