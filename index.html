@@ -325,7 +325,7 @@ body {
     <div id="adminTable"></div>
     <div class="export-options">
       <button class="export-btn" id="exportExcelBtn">导出 Excel</button>
-      <button class="export-btn" id="exportCsvBtn">导出 CSV</button>
+      <button class="export-btn" id="exportPdfBtn">导出 PDF（含签名）</button>
     </div>
   </div>
 
@@ -386,6 +386,8 @@ body {
 <div class="app-footer">钢琴房预约系统 &mdash; 工作日 8:00-14:00 可预约，14:00 后仅可查看</div>
 
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <script>
 // ============================================================
 // GITHUB API CONFIGURATION
@@ -1047,17 +1049,160 @@ function exportBookings(format) {
     };
     var now = new Date();
 
-    if (format === 'csv') {
-      var BOM = '﻿';
-      var rows = [['日期', '琴房', '时段', '姓名', '班级', '手机号', '签名']];
-      allBookings.forEach(function(b) {
-        rows.push([b.date, '琴房' + b.r, timeSlots[b.t] || b.t + ':00', b.n, b.c || '', b.p || '', b.s ? '已签' : '无']);
-      });
-      var csv = BOM + rows.map(function(r) {
-        return r.map(function(cell) { return '"' + String(cell).replace(/"/g, '""') + '"'; }).join(',');
-      }).join('\n');
+    if (format === 'pdf') {
+      // Generate PDF with signature images using jsPDF
+      var { jsPDF } = window.jspdf;
+      var doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
 
-      downloadFile(csv, '钢琴房预约记录_' + formatDate(now) + '.csv', 'text/csv;charset=utf-8');
+      // Title
+      doc.setFontSize(14);
+      doc.text('钢琴房预约记录汇总 — ' + formatDate(new Date()), 14, 15);
+
+      // Table headers and data
+      var headers = ['日期', '琴房', '时段', '姓名', '班级', '手机号', '签名'];
+      var data = [];
+
+      // Process bookings and prepare signature images
+      var sigPromises = [];
+      allBookings.forEach(function(b) {
+        var row = [b.date, '琴房' + b.r, timeSlots[b.t] || (b.t + ':00'), b.n, b.c || '', b.p || ''];
+        if (b.s) {
+          row.push(''); // placeholder, will fill with image
+        } else {
+          row.push('无');
+        }
+        data.push(row);
+      });
+
+      // Draw table
+      doc.autoTable({
+        head: [headers],
+        body: data,
+        startY: 22,
+        styles: { fontSize: 9, cellPadding: 2 },
+        headStyles: { fillColor: [102, 126, 234], textColor: 255 },
+        columnStyles: {
+          0: { cellWidth: 24 },
+          1: { cellWidth: 16 },
+          2: { cellWidth: 26 },
+          3: { cellWidth: 20 },
+          4: { cellWidth: 24 },
+          5: { cellWidth: 28 },
+          6: { cellWidth: 30 }
+        }
+      });
+
+      // Add signature images in the signature column
+      var sigIdx = 0;
+      allBookings.forEach(function(b, rowIdx) {
+        if (b.s) {
+          var img = new Image();
+          img.src = b.s;
+          var sigRow = rowIdx;
+          // Approximate Y position based on table layout
+          var pageHeight = doc.internal.pageSize.getHeight();
+          var tableStartY = 22;
+          var rowHeight = 12;
+          var y = tableStartY + (sigRow + 1) * rowHeight + 2;
+          // Handle page breaks
+          if (y > pageHeight - 20) {
+            y = y - Math.floor((y - tableStartY) / (pageHeight - 20)) * (pageHeight - 20);
+          }
+          try {
+            doc.addImage(img, 'JPEG', 250, y, 28, 10, undefined, 'FAST');
+          } catch(e) {
+            // If image fails (not loaded yet), skip
+            doc.setFontSize(8);
+            doc.text('已签', 252, y + 7);
+          }
+        }
+        sigIdx++;
+      });
+
+      // Setup for synchronous image loading
+      var sigData = [];
+      allBookings.forEach(function(b) {
+        sigData.push(b.s || null);
+      });
+
+      // Redraw with preloaded images
+      function drawPdfWithImages() {
+        doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+        doc.setFontSize(14);
+        doc.text('钢琴房预约记录汇总 — ' + formatDate(new Date()), 14, 15);
+
+        // Build data with image markers
+        var headers2 = ['日期', '琴房', '时段', '姓名', '班级', '手机号', '签名'];
+        var data2 = [];
+        allBookings.forEach(function(b) {
+          data2.push([b.date, '琴房' + b.r, timeSlots[b.t] || (b.t + ':00'), b.n, b.c || '', b.p || '', b.s ? '已签(见图)' : '无']);
+        });
+
+        doc.autoTable({
+          head: [headers2],
+          body: data2,
+          startY: 22,
+          styles: { fontSize: 9, cellPadding: 2 },
+          headStyles: { fillColor: [102, 126, 234], textColor: 255 },
+          columnStyles: {
+            0: { cellWidth: 22 },
+            1: { cellWidth: 14 },
+            2: { cellWidth: 24 },
+            3: { cellWidth: 18 },
+            4: { cellWidth: 22 },
+            5: { cellWidth: 26 },
+            6: { cellWidth: 30 }
+          },
+          didDrawCell: function(hookData) {
+            // After drawing each cell, check if it's the signature column
+            if (hookData.column.index === 6 && hookData.row.index < allBookings.length) {
+              var b = allBookings[hookData.row.index];
+              if (b && b.s) {
+                var x = hookData.cell.x + 1;
+                var y = hookData.cell.y + 1;
+                var w = hookData.cell.width - 2;
+                var h = hookData.cell.height - 2;
+                try {
+                  doc.addImage(b.s, 'JPEG', x, y, w, h, undefined, 'MEDIUM');
+                } catch(e) {}
+              }
+            }
+          }
+        });
+
+        // Footer
+        var pageCount = doc.internal.getNumberOfPages();
+        for (var i = 1; i <= pageCount; i++) {
+          doc.setPage(i);
+          doc.setFontSize(8);
+          doc.setTextColor(150);
+          doc.text('钢琴房预约系统 — 第 ' + i + ' 页，共 ' + pageCount + ' 页', 14, doc.internal.pageSize.getHeight() - 5);
+        }
+
+        doc.save('钢琴房预约记录_' + formatDate(now) + '.pdf');
+        showLoading(false);
+      }
+
+      // Preload all signature images
+      var imagesToLoad = 0;
+      var loadedCount = 0;
+      allBookings.forEach(function(b) {
+        if (b.s) {
+          imagesToLoad++;
+          var img = new Image();
+          img.onload = img.onerror = function() {
+            loadedCount++;
+            if (loadedCount >= imagesToLoad) drawPdfWithImages();
+          };
+          img.src = b.s;
+        }
+      });
+
+      if (imagesToLoad === 0) {
+        drawPdfWithImages();
+      }
+      // Note: loading is managed by image callbacks above
+      return; // Exit early - drawPdfWithImages handles showLoading(false)
     } else {
       // Use SheetJS to generate proper .xlsx file
       var rows = [['日期', '琴房', '时段', '姓名', '班级', '手机号', '签名']];
@@ -1182,7 +1327,7 @@ function initApp() {
   $('cancelBtn').addEventListener('click', closeModal);
   elToggleViewBtn.addEventListener('click', toggleView);
   $('exportExcelBtn').addEventListener('click', function() { exportBookings('excel'); });
-  $('exportCsvBtn').addEventListener('click', function() { exportBookings('csv'); });
+  $('exportPdfBtn').addEventListener('click', function() { exportBookings('pdf'); });
 
   $('pwdConfirmBtn').addEventListener('click', checkPassword);
   $('pwdCancelBtn').addEventListener('click', closePwdModal);
