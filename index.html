@@ -979,9 +979,9 @@ function exportBookings(format) {
 
     if (format === 'csv') {
       var BOM = '﻿';
-      var rows = [['日期', '琴房', '时段', '姓名', '班级', '手机号']];
+      var rows = [['日期', '琴房', '时段', '姓名', '班级', '手机号', '签名']];
       allBookings.forEach(function(b) {
-        rows.push([b.date, '琴房' + b.r, timeSlots[b.t] || b.t + ':00', b.n, b.c || '', b.p || '']);
+        rows.push([b.date, '琴房' + b.r, timeSlots[b.t] || b.t + ':00', b.n, b.c || '', b.p || '', b.s ? '已签' : '无']);
       });
       var csv = BOM + rows.map(function(r) {
         return r.map(function(cell) { return '"' + String(cell).replace(/"/g, '""') + '"'; }).join(',');
