@@ -1065,13 +1065,14 @@ function downloadFile(content, filename, mimeType) {
 // CHECK STATUS & INIT — uses smart scheduling instead of polling
 // ============================================================
 function checkStatus() {
+  try {
   var now = new Date();
   var day = now.getDay();
   var hour = now.getHours();
   var dateStr = formatDate(now);
   var dayName = getDayName(now);
 
-  elHeaderDate.textContent = dateStr + ' ' + dayName;
+  elHeaderDate.textContent = dateStr + ' ' + dayName + ' [cs:' + hour + 'h]';
 
   elStatusWeekend.style.display = 'none';
   elStatusBefore8.style.display = 'none';
@@ -1095,8 +1096,12 @@ function checkStatus() {
   bookingOpen = (hour < 14);
   elLegendClosed.style.display = bookingOpen ? 'none' : '';
   elMainView.style.display = 'block';
+  elRoomList.innerHTML = '<div style="text-align:center;padding:20px;color:#52c41a;">checkStatus OK, calling loadAndRender...</div>';
   loadAndRender(bookingOpen);
   scheduleNextCheck();
+  } catch(e) {
+    document.body.insertAdjacentHTML('beforeend', '<div style="position:fixed;top:0;left:0;right:0;background:red;color:#fff;padding:20px;z-index:9999;font-size:14px;">CHECKSTATUS ERROR: ' + e.message + '</div>');
+  }
 }
 
 // Schedule a one-shot timer to the next state transition
