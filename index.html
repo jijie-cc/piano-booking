@@ -727,12 +727,16 @@ function trySaveBooking(roomNumber, date, slot, name, className, phone, signatur
     var bookings = result.bookings;
     var sha = result.sha;
 
-    // Check if same person already booked (same name)
+    // Check class+name combo: max 3 bookings per day
+    var samePersonCount = 0;
     for (var i = 0; i < bookings.length; i++) {
-      if (bookings[i].n === name) {
-        showLoading(false);
-        showModalError('您已预约过琴房' + bookings[i].r + ' ' + bookings[i].t + ':00，每人限约一个时段');
-        return;
+      if (bookings[i].n === name && bookings[i].c === className) {
+        samePersonCount++;
+        if (samePersonCount >= 3) {
+          showLoading(false);
+          showModalError('同一班级+姓名每天最多预约3个时段，您已约满');
+          return;
+        }
       }
     }
 
