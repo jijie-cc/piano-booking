@@ -880,9 +880,20 @@ function loadAndRender(open) {
     if (isAdminView) renderAdminTable();
   }).catch(function(err) {
     showLoading(false);
-    var msg = (err.message || '网络错误') + ' [' + (err.name || 'Error') + ']';
-    showToast('加载失败：' + msg, 'error');
-    elRoomList.innerHTML = '<div class="no-bookings" style="color:#ff4d4f;">错误详情：<br>' + msg + '<br><br>请截图发给我，或尝试 Ctrl+F5 强制刷新</div>';
+    var detail = 'message=' + JSON.stringify(err.message)
+      + ' | name=' + JSON.stringify(err.name)
+      + ' | type=' + (typeof err)
+      + ' | keys=' + JSON.stringify(Object.keys(err))
+      + ' | toString=' + JSON.stringify(String(err));
+    showToast('加载失败', 'error');
+    try {
+      elRoomList.innerHTML = '<div class="no-bookings" style="color:#ff4d4f;word-break:break-all;">'
+        + '错误详情：<br>' + detail.replace(/&/g,'&amp;').replace(/</g,'&lt;')
+        + '<br><br>请截图发给我</div>';
+    } catch(e) {
+      document.body.innerHTML += '<div style="color:red;position:fixed;top:0;z-index:9999;background:white;padding:20px;">'
+        + 'FATAL: ' + e.message + '</div>';
+    }
   });
 }
 
