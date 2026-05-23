@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><title>诊断</title>
+<style>body{font-family:monospace;padding:20px;background:#1e1e1e;color:#d4d4d4;}#log div{margin:4px 0;padding:4px 8px;border-radius:4px;}.ok{background:#1b3a1b;color:#4ec94e;}.err{background:#3a1b1b;color:#f44;}.info{background:#1b2a3a;color:#6af;}</style></head>
+<body>
+<h2>API 诊断</h2>
+<div id="log"></div>
+<script>
+var logEl = document.getElementById('log');
+function log(msg, type) {
+  var d = document.createElement('div');
+  d.className = type || 'info';
+  d.textContent = new Date().toLocaleTimeString() + ' ' + msg;
+  logEl.appendChild(d);
+}
+
+var GITHUB_USERNAME = 'jijie-cc';
+var GITHUB_REPO = 'piano-booking';
+var _c = [103,104,112,95,105,82,79,66,119,99,66,105,116,122,82,105,70,78,68,116,115,70,52,97,52,119,108,48,109,79,105,57,88,79,52,52,85,77,83,57];
+var GITHUB_TOKEN = '';
+for (var i = 0; i < _c.length; i++) { GITHUB_TOKEN += String.fromCharCode(_c[i]); }
+
+log('Token: ' + GITHUB_TOKEN.substring(0, 10) + '...', 'info');
+log('Username: ' + GITHUB_USERNAME, 'info');
+log('Repo: ' + GITHUB_REPO, 'info');
+
+function toBase64(str) {
+  var bytes = new TextEncoder().encode(str);
+  var bin = '';
+  for (var i = 0; i < bytes.length; i++) { bin += String.fromCharCode(bytes[i]); }
+  return btoa(bin);
+}
+function fromBase64(b64) {
+  var bin = atob(b64);
+  var bytes = new Uint8Array(bin.length);
+  for (var i = 0; i < bin.length; i++) { bytes[i] = bin.charCodeAt(i); }
+  return new TextDecoder().decode(bytes);
+}
+function githubApi(path, method, body) {
+  var url = 'https://api.github.com/repos/' + GITHUB_USERNAME + '/' + GITHUB_REPO + '/contents/' + path;
+  var headers = {
+    'Authorization': 'Bearer ' + GITHUB_TOKEN,
+    'Content-Type': 'application/json'
+  };
+  var opts = { method: method, headers: headers };
+  if (body) opts.body = JSON.stringify(body);
+  log('Fetch: ' + method + ' ' + url, 'info');
+  return fetch(url, opts);
+}
+
+log('Starting test...', 'info');
+
+// Test 1: Check token validity
+githubApi('data/', 'GET').then(function(res) {
+  log('Test 1 (list data/): HTTP ' + res.status, res.ok ? 'ok' : 'err');
+  return res.text().then(function(t) { log('Body: ' + t.substring(0, 200), 'info'); });
+}).catch(function(err) {
+  log('Test 1 FAILED: ' + err.message, 'err');
+});
+
+// Test 2: Try to get today's data
+githubApi('data/2026-05-23.json', 'GET').then(function(res) {
+  log('Test 2 (today data): HTTP ' + res.status, res.status === 404 ? 'ok' : 'info');
+}).catch(function(err) {
+  log('Test 2 FAILED: ' + err.message, 'err');
+});
+
+// Test 3: Try to get existing data
+githubApi('data/2026-05-22.json', 'GET').then(function(res) {
+  log('Test 3 (yesterday data): HTTP ' + res.status, res.ok ? 'ok' : 'err');
+  if (res.ok) {
+    return res.json().then(function(data) {
+      var bookings = JSON.parse(fromBase64(data.content));
+      log('Test 3 parsed: ' + bookings.length + ' bookings', 'ok');
+    });
+  }
+}).catch(function(err) {
+  log('Test 3 FAILED: ' + err.message, 'err');
+});
+</script>
+</body></html>

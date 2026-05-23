@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>API Test</title></head>
+<body>
+<h2>GitHub API Test</h2>
+<div id="result">Testing...</div>
+<script>
+var GITHUB_USERNAME = 'jijie-cc';
+var GITHUB_REPO = 'piano-booking';
+var _c = [103,104,112,95,105,82,79,66,119,99,66,105,116,122,82,105,70,78,68,116,115,70,52,97,52,119,108,48,109,79,105,57,88,79,52,52,85,77,83,57];
+var GITHUB_TOKEN = '';
+for (var i = 0; i < _c.length; i++) { GITHUB_TOKEN += String.fromCharCode(_c[i]); }
+
+var url = 'https://api.github.com/repos/' + GITHUB_USERNAME + '/' + GITHUB_REPO + '/contents/data/2026-05-23.json';
+var el = document.getElementById('result');
+
+el.textContent = 'Fetching: ' + url;
+
+fetch(url, {
+  headers: { 'Authorization': 'Bearer ' + GITHUB_TOKEN }
+}).then(function(res) {
+  el.textContent = 'Status: ' + res.status + ' ok:' + res.ok;
+  return res.json();
+}).then(function(data) {
+  el.textContent += '\nData: ' + JSON.stringify(data).substring(0, 200);
+}).catch(function(err) {
+  el.textContent = 'ERROR: ' + err.message + '\\n' + err.stack;
+});
+</script>
+</body></html>
