@@ -1,0 +1,10 @@
+name = "piano-booking-api"
+main = "worker.js"
+compatibility_date = "2025-01-01"
+
+# Deploy:
+#   1. npx wrangler secret put GITHUB_TOKEN
+#   2. npx wrangler secret put ADMIN_PASSWORD
+#   3. npx wrangler deploy
+#
+# Then update API_BASE in ../index.html with your worker URL.
