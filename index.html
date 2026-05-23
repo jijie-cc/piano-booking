@@ -396,12 +396,6 @@ body {
 <div class="app-footer">钢琴房预约系统 &mdash; 每天 8:00-14:00 可预约，14:00 后仅可查看</div>
 
 <script>
-window.onerror = function(msg, src, line, col, err) {
-  document.body.insertAdjacentHTML('beforeend',
-    '<div style="position:fixed;top:0;left:0;right:0;background:red;color:#fff;padding:20px;z-index:99999;font-size:14px;white-space:pre-wrap;">'
-    + 'JS ERROR line ' + line + ': ' + msg + '</div>');
-};
-
 // ============================================================
 // GITHUB API CONFIGURATION
 // ============================================================
@@ -799,8 +793,6 @@ function trySaveBooking(roomNumber, date, slot, name, className, phone, signatur
 // RENDER ROOM LIST (via GitHub API)
 // ============================================================
 function loadAndRender(open) {
-  try {
-  elRoomList.innerHTML = '<div style=\"text-align:center;padding:40px;color:#667eea;font-size:18px;\">LAR called, open=' + open + ', fetching...</div>';
   showLoading(true);
   if (typeof open === 'undefined') open = true;
 
@@ -808,7 +800,6 @@ function loadAndRender(open) {
   var dateStr = formatDate(today);
   var currentHour = today.getHours();
 
-  // Use direct fetch (same pattern as working simple.html)
   var url = 'https://api.github.com/repos/' + GITHUB_USERNAME + '/' + GITHUB_REPO + '/contents/data/' + dateStr + '.json';
   fetch(url, { headers: { 'Authorization': 'Bearer ' + GITHUB_TOKEN } }).then(function(res) {
     if (res.status === 404) return [];
@@ -818,7 +809,6 @@ function loadAndRender(open) {
     });
   }).then(function(bookings) {
     showLoading(false);
-
     currentBookings = bookings;
 
     var bookingMap = {};
@@ -826,75 +816,37 @@ function loadAndRender(open) {
       bookingMap[b.r + '-' + b.t] = b;
     });
 
-    elRoomList.innerHTML = '<div style="text-align:center;padding:20px;color:#999;">渲染中... bookings=' + bookings.length + ' open=' + open + ' currentHour=' + currentHour + '</div>';
-
+    var html = '';
     for (var r = 0; r < TOTAL_ROOMS; r++) {
       var roomNumber = r + 1;
-
-      var card = document.createElement('div');
-      card.className = 'room-card';
-      card.setAttribute('role', 'region');
-      card.setAttribute('aria-label', ROOM_NAMES[r]);
-
-      var header = document.createElement('div');
-      header.className = 'room-header';
-      header.textContent = ROOM_NAMES[r];
-      card.appendChild(header);
-
-      var slotsRow = document.createElement('div');
-      slotsRow.className = 'slot-row';
+      html += '<div class="room-card"><div class="room-header">' + ROOM_NAMES[r] + '</div><div class="slot-row">';
 
       for (var s = 0; s < TIME_SLOTS.length; s++) {
         var hour = TIME_SLOTS[s];
         var key = roomNumber + '-' + hour;
         var existing = bookingMap[key];
 
-        var btn = document.createElement('button');
-        btn.className = 'slot-btn';
-
         if (existing) {
-          btn.classList.add('slot-booked');
-          btn.innerHTML = '已约<br><small>' + escapeHtml(existing.n) + '</small>';
-          btn.disabled = true;
-          btn.setAttribute('aria-label', SLOT_LABELS[hour] + ' 已被 ' + existing.n + ' 预约');
+          html += '<button class="slot-btn slot-booked" disabled aria-label="' + SLOT_LABELS[hour] + ' 已被 ' + existing.n + ' 预约">已约<br><small>' + escapeHtml(existing.n) + '</small></button>';
         } else if (hour <= currentHour) {
-          btn.classList.add('slot-past');
-          btn.textContent = SLOT_LABELS[hour];
-          btn.disabled = true;
-          btn.setAttribute('aria-label', SLOT_LABELS[hour] + ' 已过期');
+          html += '<button class="slot-btn slot-past" disabled aria-label="' + SLOT_LABELS[hour] + ' 已过期">' + SLOT_LABELS[hour] + '</button>';
         } else if (!open) {
-          btn.classList.add('slot-closed');
-          btn.textContent = '已截止';
-          btn.disabled = true;
-          btn.setAttribute('aria-label', SLOT_LABELS[hour] + ' 预约已截止');
+          html += '<button class="slot-btn slot-closed" disabled aria-label="' + SLOT_LABELS[hour] + ' 预约已截止">已截止</button>';
         } else {
-          btn.classList.add('slot-available');
-          btn.textContent = SLOT_LABELS[hour];
-          btn.setAttribute('aria-label', '预约 ' + ROOM_NAMES[r] + ' ' + SLOT_LABELS[hour]);
-          (function(rn, rName, d, sl) {
-            btn.addEventListener('click', function() {
-              openModal(rn, rName, d, sl);
-            });
-          })(roomNumber, ROOM_NAMES[r], dateStr, hour);
+          html += '<button class="slot-btn slot-available" onclick="openModal(' + roomNumber + ', \'' + ROOM_NAMES[r] + '\', \'' + dateStr + '\', ' + hour + ')" aria-label="预约 ' + ROOM_NAMES[r] + ' ' + SLOT_LABELS[hour] + '">' + SLOT_LABELS[hour] + '</button>';
         }
-
-        slotsRow.appendChild(btn);
       }
 
-      card.appendChild(slotsRow);
-      elRoomList.appendChild(card);
+      html += '</div></div>';
     }
+
+    elRoomList.innerHTML = html;
 
     if (isAdminView) renderAdminTable();
   }).catch(function(err) {
     showLoading(false);
-    elRoomList.innerHTML = '<div style=\"text-align:center;padding:40px;color:red;font-size:16px;\">FETCH ERROR: ' + (err.message || 'unknown') + '</div>';
-    showToast('加载失败：' + (err.message || '网络错误'), 'error');
+    elRoomList.innerHTML = '<div style="text-align:center;padding:40px;color:red;font-size:16px;">FETCH ERROR: ' + (err.message || 'unknown') + '</div>';
   });
-  } catch(e) {
-    showLoading(false);
-    elRoomList.innerHTML = '<div style=\"text-align:center;padding:40px;color:red;font-size:16px;\">LAR ERROR: ' + e.message + '</div>';
-  }
 }
 
 // ============================================================
@@ -1083,7 +1035,7 @@ function checkStatus() {
   var dateStr = formatDate(now);
   var dayName = getDayName(now);
 
-  elHeaderDate.textContent = dateStr + ' ' + dayName + ' [cs:' + hour + 'h]';
+  elHeaderDate.textContent = dateStr + ' ' + dayName;
 
   elStatusWeekend.style.display = 'none';
   elStatusBefore8.style.display = 'none';
