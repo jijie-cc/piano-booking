@@ -798,7 +798,9 @@ function loadAndRender(open) {
   var _steps = [];
   function _log(s) { _steps.push(s); console.log('LAR:', s); }
   function _showSteps() {
-    try { elRoomList.innerHTML = '<div class="no-bookings">DEBUG STEPS:<br>' + _steps.map(function(s,i){ return (i+1)+'. '+s; }).join('<br>') + '</div>'; } catch(e) {}
+    var html = '<div id=\"debugBox\" style=\"padding:20px;background:#fff;margin:12px;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,0.1);font-size:13px;line-height:1.6;word-break:break-all;\"><b>DEBUG STEPS:</b><br>' + _steps.map(function(s,i){ return (i+1)+'. '+s; }).join('<br>') + '</div>';
+    try { elRoomList.innerHTML = html; } catch(e) {}
+    try { document.getElementById('mainView').insertAdjacentHTML('beforebegin', html); } catch(e) {}
   }
 
   try {
