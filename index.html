@@ -297,8 +297,8 @@ body {
 
 <div id="statusWeekend" class="status-page" style="display:none;">
   <div class="status-icon">&#x1f4c5;</div>
-  <div class="status-title">每天 8:00-14:00 可预约</div>
-  <div class="status-desc">每天 8:00-14:00 可预约</div>
+  <div class="status-title">仅工作日开放预约</div>
+  <div class="status-desc">周一至周五 8:00-14:00 可预约</div>
 </div>
 
 <div id="statusBefore8" class="status-page" style="display:none;">
@@ -392,7 +392,7 @@ body {
   <div class="spinner"></div>
 </div>
 
-<div class="app-footer">钢琴房预约系统 &mdash; 每天 8:00-14:00 可预约，14:00 后仅可查看</div>
+<div class="app-footer">钢琴房预约系统 &mdash; 工作日 8:00-14:00 可预约，14:00 后仅可查看</div>
 
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script>
@@ -1043,6 +1043,12 @@ function checkStatus() {
   elStatusAfter9.style.display = 'none';
   elMainView.style.display = 'none';
 
+  if (day === 0 || day === 6) {
+    elStatusWeekend.style.display = 'block';
+    scheduleNextCheck();
+    return;
+  }
+
   if (hour < 8) {
     elCurrentTime.textContent = padTime(hour) + ':' + padTime(now.getMinutes());
     elStatusBefore8.style.display = 'block';
@@ -1074,7 +1080,10 @@ function scheduleNextCheck() {
 
   // Calculate ms until next relevant checkpoint
   var targetH;
-  if (h < 8) {
+  if (day === 0 || day === 6) {
+    var daysToMonday = day === 0 ? 1 : (7 - day);
+    targetH = (daysToMonday * 24) + 8;
+  } else if (h < 8) {
     targetH = 8;
   } else if (h < 14) {
     targetH = 14;
