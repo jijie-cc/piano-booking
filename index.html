@@ -4,7 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<title>钢琴房预约 v2</title>
+<title>钢琴房预约 v3</title>
+<script>
+// Auto-update: redirect to latest version for WeChat/QQ browsers
+var LATEST = 'v3';
+if (window.location.search.indexOf(LATEST) === -1) {
+  window.location.replace(window.location.pathname + '?' + LATEST + window.location.hash);
+}
+</script>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
