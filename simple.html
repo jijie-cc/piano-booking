@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>钢琴房预约系统 - 简化版</title>
+<style>
+body{font-family:-apple-system,sans-serif;background:#f0f2f5;margin:0;padding:0}
+h1{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;padding:16px;text-align:center;font-size:20px;margin:0}
+.room{padding:0 12px;max-width:500px;margin:0 auto}
+.card{background:#fff;border-radius:10px;margin:10px 0;padding:10px 12px;box-shadow:0 1px 4px rgba(0,0,0,0.06)}
+.header{font-weight:600;font-size:14px;color:#555;margin-bottom:8px}
+.slots{display:flex;gap:4px}
+.slot{flex:1;min-height:44px;border:none;border-radius:6px;font-size:13px;font-weight:500;color:#fff;cursor:pointer}
+.avail{background:#52c41a}.booked{background:#ff4d4f;cursor:not-allowed}.past{background:#d9d9d9;cursor:not-allowed}.closed{background:#faad14;cursor:not-allowed}
+#msg{padding:20px;text-align:center;color:#999}
+</style></head>
+<body>
+<h1>钢琴房预约系统</h1>
+<div id="msg">加载中...</div>
+<div class="room" id="rooms"></div>
+
+<script>
+var U='jijie-cc',R='piano-booking';
+var c=[103,104,112,95,105,82,79,66,119,99,66,105,116,122,82,105,70,78,68,116,115,70,52,97,52,119,108,48,109,79,105,57,88,79,52,52,85,77,83,57];
+var T='';for(var i=0;i<c.length;i++)T+=String.fromCharCode(c[i]);
+
+var now=new Date();
+var ds=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
+var ch=now.getHours();
+var slots=[14,15,16,17,18,19,20];
+var labels={14:'14:00',15:'15:00',16:'16:00',17:'17:00',18:'18:00',19:'19:00',20:'20:00'};
+
+var url='https://api.github.com/repos/'+U+'/'+R+'/contents/data/'+ds+'.json';
+document.getElementById('msg').textContent='Fetching: '+url;
+
+fetch(url,{headers:{'Authorization':'Bearer '+T}}).then(function(r){
+  document.getElementById('msg').textContent='Status: '+r.status;
+  if(r.status===404)return[];
+  if(!r.ok)throw new Error('HTTP '+r.status);
+  return r.json().then(function(d){
+    var bin=atob(d.content);
+    var bytes=new Uint8Array(bin.length);
+    for(var i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);
+    return JSON.parse(new TextDecoder().decode(bytes));
+  });
+}).then(function(bookings){
+  document.getElementById('msg').textContent='Loaded '+bookings.length+' bookings';
+  var map={};
+  bookings.forEach(function(b){map[b.r+'-'+b.t]=b;});
+  var html='';
+  for(var r=1;r<=19;r++){
+    html+='<div class="card"><div class="header">琴房 '+String(r).padStart(2,'0')+'</div><div class="slots">';
+    for(var s=0;s<slots.length;s++){
+      var h=slots[s],k=r+'-'+h,ex=map[k],cls='avail',txt=labels[h];
+      if(ex){cls='booked';txt='已约<br>'+ex.n;}
+      else if(h<=ch){cls='past';}
+      else if(ch>=14){cls='closed';txt='已截止';}
+      html+='<button class="slot '+cls+'" '+(ex||h<=ch||ch>=14?'disabled':'')+'>'+txt+'</button>';
+    }
+    html+='</div></div>';
+  }
+  document.getElementById('rooms').innerHTML=html;
+}).catch(function(e){
+  document.getElementById('msg').textContent='ERROR: '+e.message+' | '+e.name;
+});
+</script>
+</body></html>
