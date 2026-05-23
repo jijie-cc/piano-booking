@@ -799,6 +799,8 @@ function trySaveBooking(roomNumber, date, slot, name, className, phone, signatur
 // RENDER ROOM LIST (via GitHub API)
 // ============================================================
 function loadAndRender(open) {
+  try {
+  elRoomList.innerHTML = '<div style=\"text-align:center;padding:40px;color:#667eea;font-size:18px;\">LAR called, open=' + open + ', fetching...</div>';
   showLoading(true);
   if (typeof open === 'undefined') open = true;
 
@@ -886,8 +888,13 @@ function loadAndRender(open) {
     if (isAdminView) renderAdminTable();
   }).catch(function(err) {
     showLoading(false);
+    elRoomList.innerHTML = '<div style=\"text-align:center;padding:40px;color:red;font-size:16px;\">FETCH ERROR: ' + (err.message || 'unknown') + '</div>';
     showToast('加载失败：' + (err.message || '网络错误'), 'error');
   });
+  } catch(e) {
+    showLoading(false);
+    elRoomList.innerHTML = '<div style=\"text-align:center;padding:40px;color:red;font-size:16px;\">LAR ERROR: ' + e.message + '</div>';
+  }
 }
 
 // ============================================================
