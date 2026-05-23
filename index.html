@@ -297,20 +297,20 @@ body {
 
 <div id="statusWeekend" class="status-page" style="display:none;">
   <div class="status-icon">&#x1f4c5;</div>
-  <div class="status-title">每天 8:00-14:00 可预约</div>
-  <div class="status-desc">周一至周五 8:00-14:00 可预约</div>
+  <div class="status-title">每天 8:00-18:00 可预约</div>
+  <div class="status-desc">每天 8:00-18:00 可预约</div>
 </div>
 
 <div id="statusBefore8" class="status-page" style="display:none;">
   <div class="status-icon">&#x23f0;</div>
   <div class="status-title">预约尚未开放</div>
-  <div class="status-desc">预约时间 8:00-14:00<br>当前时间：<span id="currentTime"></span></div>
+  <div class="status-desc">预约时间 8:00-18:00<br>当前时间：<span id="currentTime"></span></div>
 </div>
 
 <div id="statusAfter2" class="status-page" style="display:none;">
   <div class="status-icon">&#x1f440;</div>
   <div class="status-title">预约已截止</div>
-  <div class="status-desc">每天 8:00-14:00 可预约<br>当前仅可查看预约情况</div>
+  <div class="status-desc">每天 8:00-18:00 可预约<br>当前仅可查看预约情况</div>
 </div>
 
 <div id="statusAfter9" class="status-page" style="display:none;">
@@ -392,7 +392,7 @@ body {
   <div class="spinner"></div>
 </div>
 
-<div class="app-footer">钢琴房预约系统 &mdash; 每天 8:00-14:00 可预约，14:00 后仅可查看</div>
+<div class="app-footer">钢琴房预约系统 &mdash; 每天 8:00-18:00 可预约，18:00 后仅可查看</div>
 
 <script>
 // ============================================================
@@ -1055,7 +1055,7 @@ function checkStatus() {
     return;
   }
 
-  bookingOpen = (hour < 14);
+  bookingOpen = (hour < 18);
   elLegendClosed.style.display = bookingOpen ? 'none' : '';
   elMainView.style.display = 'block';
   loadAndRender(bookingOpen);
@@ -1075,8 +1075,8 @@ function scheduleNextCheck() {
   var targetH;
   if (h < 8) {
     targetH = 8;
-  } else if (h < 14) {
-    targetH = 14;
+  } else if (h < 18) {
+    targetH = 18;
   } else if (h < 21) {
     targetH = 21;
   } else {
