@@ -794,21 +794,38 @@ function trySaveBooking(roomNumber, date, slot, name, className, phone, signatur
 // RENDER ROOM LIST (via GitHub API)
 // ============================================================
 function loadAndRender(open) {
+  // Step-by-step debug log on page
+  var _steps = [];
+  function _log(s) { _steps.push(s); console.log('LAR:', s); }
+  function _showSteps() {
+    try { elRoomList.innerHTML = '<div class="no-bookings">DEBUG STEPS:<br>' + _steps.map(function(s,i){ return (i+1)+'. '+s; }).join('<br>') + '</div>'; } catch(e) {}
+  }
+
+  try {
+  _log('start, open=' + open);
   showLoading(true);
+  _log('loading shown');
 
   if (typeof open === 'undefined') open = true;
 
   var today = new Date();
   var dateStr = formatDate(today);
   var currentHour = today.getHours();
+  _log('date=' + dateStr + ' hour=' + currentHour);
 
-  githubApi(dataFilePath(dateStr), 'GET').then(function(res) {
-    if (res.status === 404) return [];
+  var filePath = dataFilePath(dateStr);
+  _log('filePath=' + filePath);
+
+  githubApi(filePath, 'GET').then(function(res) {
+    _log('response status=' + res.status + ' ok=' + res.ok);
+    if (res.status === 404) { _log('404 -> return []'); return []; }
     if (!res.ok) throw new Error('HTTP ' + res.status);
     return res.json().then(function(data) {
+      _log('parsing json...');
       return JSON.parse(fromBase64(data.content));
     });
   }).then(function(bookings) {
+    _log('got bookings count=' + bookings.length);
     showLoading(false);
 
     currentBookings = bookings;
@@ -879,22 +896,18 @@ function loadAndRender(open) {
 
     if (isAdminView) renderAdminTable();
   }).catch(function(err) {
+    _log('CATCH: ' + (err.message || String(err)));
     showLoading(false);
-    var detail = 'message=' + JSON.stringify(err.message)
-      + ' | name=' + JSON.stringify(err.name)
-      + ' | type=' + (typeof err)
-      + ' | keys=' + JSON.stringify(Object.keys(err))
-      + ' | toString=' + JSON.stringify(String(err));
     showToast('加载失败', 'error');
-    try {
-      elRoomList.innerHTML = '<div class="no-bookings" style="color:#ff4d4f;word-break:break-all;">'
-        + '错误详情：<br>' + detail.replace(/&/g,'&amp;').replace(/</g,'&lt;')
-        + '<br><br>请截图发给我</div>';
-    } catch(e) {
-      document.body.innerHTML += '<div style="color:red;position:fixed;top:0;z-index:9999;background:white;padding:20px;">'
-        + 'FATAL: ' + e.message + '</div>';
-    }
+    _showSteps();
   });
+  } catch(e) {
+    _log('SYNC-ERROR: ' + e.message);
+    showLoading(false);
+    showToast('同步错误', 'error');
+    _showSteps();
+  }
+}
 }
 
 // ============================================================
