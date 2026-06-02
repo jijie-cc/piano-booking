@@ -4,14 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<title>钢琴房预约 v3</title>
-<script>
-// Auto-update: redirect to latest version for WeChat/QQ browsers
-var LATEST = 'v3';
-if (window.location.search.indexOf(LATEST) === -1) {
-  window.location.replace(window.location.pathname + '?' + LATEST + window.location.hash);
-}
-</script>
+<title>钢琴房预约系统</title>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -392,9 +385,6 @@ body {
 
 <div class="app-footer">钢琴房预约系统 &mdash; 工作日 8:00-14:00 可预约，14:00 后仅可查看</div>
 
-<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <script>
 // ============================================================
 // GITHUB API CONFIGURATION
@@ -1008,8 +998,32 @@ function checkPassword() {
 // ============================================================
 // EXPORT (supports both Excel .xls and proper CSV with BOM)
 // ============================================================
+// Lazy-load external scripts on demand
+var _scriptsLoaded = {};
+function loadScript(src) {
+  return new Promise(function(resolve, reject) {
+    if (_scriptsLoaded[src]) { resolve(); return; }
+    var s = document.createElement('script');
+    s.src = src;
+    s.onload = function() { _scriptsLoaded[src] = true; resolve(); };
+    s.onerror = reject;
+    document.head.appendChild(s);
+  });
+}
+
 function exportBookings(format) {
   showLoading(true);
+
+  // Load required libraries on demand
+  var scripts = [];
+  if (format === 'excel') {
+    scripts.push('https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js');
+  } else if (format === 'pdf') {
+    scripts.push('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+    scripts.push('https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js');
+  }
+
+  Promise.all(scripts.map(loadScript)).then(function() {
 
   githubApi('data/', 'GET').then(function(res) {
     if (res.status === 404) return [];
@@ -1228,6 +1242,11 @@ function exportBookings(format) {
       XLSX.writeFile(wb, '钢琴房预约记录_' + formatDate(now) + '.xlsx');
     }
     })(allBookings);
+  }).catch(function(err) {
+    showLoading(false);
+    showToast('导出失败：' + (err.message || '网络错误'), 'error');
+  });
+
   }).catch(function(err) {
     showLoading(false);
     showToast('导出失败：' + (err.message || '网络错误'), 'error');
