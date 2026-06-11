@@ -922,22 +922,22 @@ function deleteBooking(key) {
       var bookings = result.bookings;
       var sha = result.sha;
 
-      // Remove the matching booking
-      var found = false;
-      bookings = bookings.filter(function(item) {
-        if (!found && item.r === b.r && item.t === b.t && item.n === b.n) {
-          found = true;
-          return false;
+      // Find and remove the matching booking by exact key fields
+      var idx = -1;
+      for (var i = 0; i < bookings.length; i++) {
+        if (bookings[i].r === b.r && bookings[i].t === b.t && bookings[i].n === b.n) {
+          idx = i;
+          break;
         }
-        return true;
-      });
+      }
 
-      if (!found) {
+      if (idx === -1) {
         showLoading(false);
-        showToast('未找到该预约记录（可能已被删除）', 'error');
+        showToast('未找到对应记录，自动刷新', 'info');
         loadAndRender(bookingOpen);
         return;
       }
+      bookings.splice(idx, 1);
 
       var body = {
         content: toBase64(JSON.stringify(bookings)),
@@ -948,7 +948,6 @@ function deleteBooking(key) {
       return githubApi(filePath, 'PUT', body).then(function(putRes) {
         if (putRes.ok) {
           showToast('已删除', 'success');
-          // Delay reload to let GitHub cache sync
           setTimeout(function() {
             showLoading(false);
             loadAndRender(bookingOpen);
@@ -958,8 +957,13 @@ function deleteBooking(key) {
         if (putRes.status === 422 && retriesLeft > 0) {
           return tryDelete(retriesLeft - 1);
         }
-        showLoading(false);
-        showToast('删除失败', 'error');
+        return putRes.json().then(function(errData) {
+          showLoading(false);
+          showToast('删除失败 HTTP ' + putRes.status + ': ' + (errData.message || '未知错误'), 'error');
+        }).catch(function() {
+          showLoading(false);
+          showToast('删除失败 HTTP ' + putRes.status, 'error');
+        });
       });
     }).catch(function(err) {
       showLoading(false);
