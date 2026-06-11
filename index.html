@@ -934,7 +934,8 @@ function deleteBooking(key) {
 
       if (!found) {
         showLoading(false);
-        showToast('未找到该预约记录', 'error');
+        showToast('未找到该预约记录（可能已被删除）', 'error');
+        loadAndRender(bookingOpen);
         return;
       }
 
@@ -946,9 +947,12 @@ function deleteBooking(key) {
 
       return githubApi(filePath, 'PUT', body).then(function(putRes) {
         if (putRes.ok) {
-          showLoading(false);
           showToast('已删除', 'success');
-          loadAndRender(bookingOpen);
+          // Delay reload to let GitHub cache sync
+          setTimeout(function() {
+            showLoading(false);
+            loadAndRender(bookingOpen);
+          }, 800);
           return;
         }
         if (putRes.status === 422 && retriesLeft > 0) {
