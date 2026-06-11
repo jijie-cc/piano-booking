@@ -878,9 +878,10 @@ function renderAdminTable() {
 
   var html = '<table class="admin-table"><thead><tr><th>琴房</th><th>时段</th><th>姓名</th><th>班级</th><th>手机号</th><th>签名</th><th>操作</th></tr></thead><tbody>';
 
-  sorted.forEach(function(b, idx) {
+  sorted.forEach(function(b) {
     var timeLabel = (b.t < 10 ? '0' : '') + b.t + ':00-' + (b.t + 1) + ':00';
     var sigImg = b.s ? '<img class="sig-thumb" src="' + escapeHtml(b.s) + '" alt="签名" loading="lazy">' : '-';
+    var key = b.r + '_' + b.t + '_' + encodeURIComponent(b.n);
     html += '<tr>' +
       '<td>' + b.r + '</td>' +
       '<td>' + timeLabel + '</td>' +
@@ -888,7 +889,7 @@ function renderAdminTable() {
       '<td>' + escapeHtml(b.c || '-') + '</td>' +
       '<td>' + escapeHtml(b.p || '-') + '</td>' +
       '<td>' + sigImg + '</td>' +
-      '<td><button onclick="deleteBooking(' + idx + ')" style="padding:4px 10px;border:none;border-radius:4px;background:#ff4d4f;color:#fff;font-size:12px;cursor:pointer;">删除</button></td>' +
+      '<td><button onclick="deleteBooking(\'' + key + '\')" style="padding:4px 10px;border:none;border-radius:4px;background:#ff4d4f;color:#fff;font-size:12px;cursor:pointer;">删除</button></td>' +
       '</tr>';
   });
 
@@ -896,10 +897,14 @@ function renderAdminTable() {
   elAdminTable.innerHTML = html;
 }
 
-function deleteBooking(idx) {
-  var b = currentBookings[idx];
+function deleteBooking(key) {
+  var parts = key.split('_');
+  var r = parseInt(parts[0]);
+  var t = parseInt(parts[1]);
+  var n = decodeURIComponent(parts[2]);
+  var b = currentBookings.find(function(item) { return item.r === r && item.t === t && item.n === n; });
   if (!b) return;
-  if (!confirm('确认删除 琴房' + b.r + ' ' + (b.t < 10 ? '0' : '') + b.t + ':00 ' + b.n + ' 的预约？')) return;
+  if (!confirm('确认删除 琴房' + r + ' ' + (t < 10 ? '0' : '') + t + ':00 ' + n + ' 的预约？')) return;
 
   showLoading(true);
   var today = new Date();
