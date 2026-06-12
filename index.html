@@ -383,7 +383,7 @@ body {
   <div class="spinner"></div>
 </div>
 
-<div class="app-footer" style="background:#fffbe6;border-color:#ffe58f;color:#ad6800;">测试模式 &mdash; 所有时段可预约 | 测试完告诉我恢复</div>
+<div class="app-footer">钢琴房预约系统 &mdash; 工作日 8:00-14:00 可预约，14:00 后仅可查看</div>
 
 <script>
 // ============================================================
@@ -1308,8 +1308,26 @@ function checkStatus() {
   elStatusAfter9.style.display = 'none';
   elMainView.style.display = 'none';
 
-  // TEST MODE: skip restrictions
-  bookingOpen = true;
+  if (day === 0 || day === 6) {
+    elStatusWeekend.style.display = 'block';
+    scheduleNextCheck();
+    return;
+  }
+
+  if (hour < 8) {
+    elCurrentTime.textContent = padTime(hour) + ':' + padTime(now.getMinutes());
+    elStatusBefore8.style.display = 'block';
+    scheduleNextCheck();
+    return;
+  }
+
+  if (hour >= 21) {
+    elStatusAfter9.style.display = 'block';
+    scheduleNextCheck();
+    return;
+  }
+
+  bookingOpen = (hour < 14);
   elLegendClosed.style.display = bookingOpen ? 'none' : '';
   elMainView.style.display = 'block';
   loadAndRender(bookingOpen);
