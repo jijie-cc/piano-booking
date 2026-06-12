@@ -345,8 +345,8 @@ body {
     <label for="classInput">班级 *</label>
     <input type="text" id="classInput" placeholder="请输入班级" maxlength="20" autocomplete="off" aria-required="true">
 
-    <label for="phoneInput">手机号（选填）</label>
-    <input type="tel" id="phoneInput" placeholder="请输入11位手机号" maxlength="11" autocomplete="tel" inputmode="numeric" pattern="[0-9]*">
+    <label for="phoneInput">手机号 *</label>
+    <input type="tel" id="phoneInput" placeholder="请输入11位手机号（必填）" maxlength="11" autocomplete="tel" inputmode="numeric" pattern="[0-9]*">
 
     <div class="signature-label">
       <span>签名 *</span>
@@ -691,7 +691,11 @@ function submitBooking() {
     hasError = true;
   } else { elClassInput.classList.remove('input-error'); }
 
-  if (phone && !isValidPhone(phone)) {
+  if (!phone) {
+    elPhoneInput.classList.add('input-error');
+    if (!hasError) showModalError('请输入手机号');
+    hasError = true;
+  } else if (!isValidPhone(phone)) {
     elPhoneInput.classList.add('input-error');
     if (!hasError) showModalError('手机号格式不正确');
     hasError = true;
