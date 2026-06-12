@@ -470,6 +470,10 @@ function isValidPhone(phone) {
   return /^1[3-9]\d{9}$/.test(phone);
 }
 
+function isValidName(name) {
+  return /^[一-鿿]{2,}$/.test(name);
+}
+
 // ============================================================
 // DOM REFS
 // ============================================================
