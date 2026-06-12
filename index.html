@@ -681,7 +681,7 @@ function submitBooking() {
     hasError = true;
   } else if (!isValidName(name)) {
     elNameInput.classList.add('input-error');
-    showModalError('姓名须为纯中文，至少2个字');
+    showModalError('请正确填写姓名，否则不予预约使用');
     hasError = true;
   } else { elNameInput.classList.remove('input-error'); }
 
