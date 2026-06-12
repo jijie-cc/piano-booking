@@ -679,6 +679,10 @@ function submitBooking() {
     elNameInput.classList.add('input-error');
     showModalError('请输入姓名');
     hasError = true;
+  } else if (!isValidName(name)) {
+    elNameInput.classList.add('input-error');
+    showModalError('姓名须为纯中文，至少2个字');
+    hasError = true;
   } else { elNameInput.classList.remove('input-error'); }
 
   if (!className) {
@@ -1365,6 +1369,16 @@ function initApp() {
 
   elBookingModal.addEventListener('click', function(e) {
     if (e.target === elBookingModal) closeModal();
+  });
+
+  // Real-time name validation
+  elNameInput.addEventListener('input', function() {
+    var val = elNameInput.value.trim();
+    if (val && !isValidName(val)) {
+      elNameInput.classList.add('input-error');
+    } else {
+      elNameInput.classList.remove('input-error');
+    }
   });
 
   // Real-time phone validation feedback
