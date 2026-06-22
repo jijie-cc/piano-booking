@@ -786,10 +786,13 @@ function trySaveBooking(roomNumber, date, slot, name, className, phone, signatur
         // SHA conflict: retry with full params
         return trySaveBooking(roomNumber, date, slot, name, className, phone, signature, retriesLeft - 1);
       }
-      return putRes.json().then(function(err) {
+      return putRes.text().then(function(txt) {
         showLoading(false);
         $('confirmBtn').disabled = false;
-        showModalError('预约失败：' + (err.message || '服务器错误，请稍后重试'));
+        var msg = '预约失败';
+        try { var err = JSON.parse(txt); msg = err.message || msg; } catch(e) {}
+        if (txt.indexOf('rate limit') !== -1) msg = '请求过于频繁，请稍后再试';
+        showModalError(msg);
       }).catch(function() {
         showLoading(false);
         $('confirmBtn').disabled = false;
