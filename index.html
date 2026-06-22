@@ -417,15 +417,6 @@ function dataFilePath(dateStr) {
   return 'data/' + dateStr + '.json';
 }
 
-function sigsFilePath(dateStr) {
-  return 'sigs/' + dateStr + '.json';
-}
-
-// Generate unique short ID for signature reference
-function sigId(roomNumber, slot, name) {
-  return roomNumber + '_' + slot + '_' + name.replace(/[^一-鿿\w]/g, '').substring(0, 10) + '_' + Date.now().toString(36);
-}
-
 function githubApi(path, method, body) {
   var url = 'https://api.github.com/repos/' + GITHUB_USERNAME + '/' + GITHUB_REPO + '/contents/' + path;
   var headers = {
@@ -545,9 +536,9 @@ function refreshSignaturePad() {
   var rect = canvas.parentElement.getBoundingClientRect();
   var w = rect.width || 320;
 
-  // 1x resolution (halved from original 2x) — reduces signature data size by ~75%
-  canvas.width = w;
-  canvas.height = 150;
+  // 0.6x resolution to keep data small
+  canvas.width = Math.round(w * 0.6);
+  canvas.height = 90;
 
   sigCtx = canvas.getContext('2d');
   sigCtx.strokeStyle = '#333';
@@ -605,10 +596,9 @@ function clearSignature() {
   sigHasContent = false;
 }
 
-// Uses JPEG @ 0.6 quality — dramatically smaller than PNG base64
 function getSignatureData() {
   if (!sigHasContent) return null;
-  return elSigCanvas.toDataURL('image/jpeg', 0.6);
+  return elSigCanvas.toDataURL('image/jpeg', 0.35);
 }
 
 // ============================================================
@@ -769,59 +759,21 @@ function trySaveBooking(roomNumber, date, slot, name, className, phone, signatur
       }
     }
 
-    // Generate signature ID and store sig separately
-    var sid = sigId(roomNumber, slot, name);
-
-    // Add new booking (sig is just a reference ID)
+    // Add new booking with compressed signature
     bookings.push({
       r: roomNumber, t: slot, n: name,
-      c: className, p: phone, s: sid
+      c: className, p: phone, s: signature
     });
 
-    // Save signature to separate file
-    var sigsPath = sigsFilePath(date);
-    var saveBooking = function(sigsSha) {
-      var jsonStr = JSON.stringify(bookings);
-      var body = {
-        content: toBase64(jsonStr),
-        message: '预约: 琴房' + roomNumber + ' ' + slot + ':00 ' + name
-      };
-      if (sha) body.sha = sha;
-      return githubApi(filePath, 'PUT', body).then(function(putRes) {
-        // Note: sigsSha is captured in closure for potential cleanup
-        return putRes;
-      });
+    // Save to GitHub
+    var jsonStr = JSON.stringify(bookings);
+    var body = {
+      content: toBase64(jsonStr),
+      message: '预约: 琴房' + roomNumber + ' ' + slot + ':00 ' + name
     };
+    if (sha) body.sha = sha;
 
-    // First save the sig file, then the booking
-    return githubApi(sigsPath, 'GET').then(function(sigRes) {
-      var sigs = {};
-      var sigSha = null;
-      if (sigRes.ok) {
-        return sigRes.json().then(function(d) {
-          sigSha = d.sha;
-          sigs = JSON.parse(fromBase64(d.content));
-          return { sigs: sigs, sigSha: sigSha };
-        });
-      }
-      return { sigs: sigs, sigSha: sigSha };
-    }).then(function(result) {
-      result.sigs[sid] = signature;
-      var sigBody = {
-        content: toBase64(JSON.stringify(result.sigs)),
-        message: '签名: ' + sid
-      };
-      if (result.sigSha) sigBody.sha = result.sigSha;
-      return githubApi(sigsPath, 'PUT', sigBody).then(function(sigPutRes) {
-        if (sigPutRes.ok) {
-          return saveBooking().then(function(putRes) { return putRes; });
-        }
-        if (sigPutRes.status === 422 && retriesLeft > 0) {
-          return trySaveBooking(roomNumber, date, slot, name, className, phone, signature, retriesLeft - 1);
-        }
-        throw new Error('签名保存失败');
-      });
-    }).then(function(putRes) {
+    return githubApi(filePath, 'PUT', body).then(function(putRes) {
       if (putRes.ok) {
         showLoading(false);
         $('confirmBtn').disabled = false;
@@ -862,32 +814,13 @@ function loadAndRender(open) {
   var dateStr = formatDate(today);
   var currentHour = today.getHours();
 
-  // Load bookings and signatures in parallel
-  var p1 = githubApi(dataFilePath(dateStr), 'GET').then(function(res) {
+  githubApi(dataFilePath(dateStr), 'GET').then(function(res) {
     if (res.status === 404) return [];
     if (!res.ok) throw new Error('HTTP ' + res.status);
     return res.json().then(function(data) {
       return JSON.parse(fromBase64(data.content));
     });
-  });
-
-  var p2 = githubApi(sigsFilePath(dateStr), 'GET').then(function(res) {
-    if (res.status === 404) return {};
-    if (!res.ok) return {};
-    return res.json().then(function(data) {
-      return JSON.parse(fromBase64(data.content));
-    });
-  });
-
-  Promise.all([p1, p2]).then(function(results) {
-    var bookings = results[0];
-    var sigs = results[1];
-
-    // Merge signature data: replace sig ID with actual data URL
-    bookings.forEach(function(b) {
-      if (b.s && sigs[b.s]) b.s = sigs[b.s];
-    });
-
+  }).then(function(bookings) {
     showLoading(false);
     currentBookings = bookings;
 
@@ -1124,30 +1057,13 @@ function exportBookings(format) {
     if (!Array.isArray(files) || files.length === 0) return [];
 
     var fetches = files.map(function(f) {
-      var dateStr = f.name.replace('.json', '');
-      // Load bookings and sigs in parallel
-      var bp = githubApi(f.path, 'GET').then(function(r) {
+      return githubApi(f.path, 'GET').then(function(r) {
         if (!r.ok) return null;
         return r.json().then(function(data) {
-          return JSON.parse(fromBase64(data.content));
+          var bookings = JSON.parse(fromBase64(data.content));
+          var dateStr = f.name.replace('.json', '');
+          return bookings.map(function(b) { b.date = dateStr; return b; });
         });
-      });
-      var sp = githubApi('sigs/' + f.name, 'GET').then(function(r) {
-        if (!r.ok) return {};
-        return r.json().then(function(data) {
-          return JSON.parse(fromBase64(data.content));
-        });
-      });
-      return Promise.all([bp, sp]).then(function(pair) {
-        if (!pair[0]) return null;
-        var bookings = pair[0];
-        var sigs = pair[1] || {};
-        // Merge sigs into bookings
-        bookings.forEach(function(b) {
-          if (b.s && sigs[b.s]) b.s = sigs[b.s];
-          b.date = dateStr;
-        });
-        return bookings;
       });
     });
     return Promise.all(fetches);
