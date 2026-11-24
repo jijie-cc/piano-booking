@@ -292,6 +292,12 @@ body {
   <div class="status-desc">周一至周五 8:00-14:00 可预约</div>
 </div>
 
+<div id="statusClosed" class="status-page" style="display:none;">
+  <div class="status-icon">&#x1f6ab;</div>
+  <div class="status-title">暂停预约</div>
+  <div class="status-desc" id="closedDesc"></div>
+</div>
+
 <div id="statusBefore8" class="status-page" style="display:none;">
   <div class="status-icon">&#x23f0;</div>
   <div class="status-title">预约尚未开放</div>
@@ -411,6 +417,12 @@ var SLOT_LABELS = {
 };
 
 // ============================================================
+// TEMPORARY CLOSURE (临时停约日期，到期后从此数组中删除即可恢复)
+// ============================================================
+var CLOSED_DATES = ['2026-11-26', '2026-11-27', '2026-11-28', '2026-11-29'];
+var CLOSED_NOTICE = '本周四至周日（11月26日-11月29日）暂停预约，下周一恢复';
+
+// ============================================================
 // GITHUB API HELPERS
 // ============================================================
 function dataFilePath(dateStr) {
@@ -481,6 +493,8 @@ var $ = function(id) { return document.getElementById(id); };
 
 var elHeaderDate = $('headerDate');
 var elStatusWeekend = $('statusWeekend');
+var elStatusClosed = $('statusClosed');
+var elClosedDesc = $('closedDesc');
 var elStatusBefore8 = $('statusBefore8');
 var elStatusAfter2 = $('statusAfter2');
 var elStatusAfter9 = $('statusAfter9');
@@ -1305,10 +1319,19 @@ function checkStatus() {
   elHeaderDate.textContent = dateStr + ' ' + dayName;
 
   elStatusWeekend.style.display = 'none';
+  elStatusClosed.style.display = 'none';
   elStatusBefore8.style.display = 'none';
   elStatusAfter2.style.display = 'none';
   elStatusAfter9.style.display = 'none';
   elMainView.style.display = 'none';
+
+  // 临时停约日期：全天不可预约
+  if (CLOSED_DATES.indexOf(dateStr) !== -1) {
+    elClosedDesc.textContent = CLOSED_NOTICE;
+    elStatusClosed.style.display = 'block';
+    scheduleNextCheck();
+    return;
+  }
 
   if (day === 0 || day === 6) {
     elStatusWeekend.style.display = 'block';
